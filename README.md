@@ -325,8 +325,6 @@ I used the kaggle dataset for this.
 imShow('./predictions.jpg')
 ```
 ![predictions](https://user-images.githubusercontent.com/17769927/134396377-fb208a3c-fa7b-4616-bec6-db7ded1e07b5.png)
-![3](https://user-images.githubusercontent.com/17769927/134425508-171e746e-74c9-4c76-b2f8-3722491a708b.png)
-![2](https://user-images.githubusercontent.com/17769927/134425451-1223d32e-72d4-4ae6-8f53-1536e8e759d8.png)
 ![1](https://user-images.githubusercontent.com/17769927/134425479-42235ab7-2a4f-4c49-a13c-69b660900360.png)
 
 **To process a list of images data/train.txt and save results of detection to result.json file use**
