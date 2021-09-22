@@ -116,9 +116,8 @@ sns.histplot(data=df, x='height', bins=bins)
 
 
 
-    
-![png](readme_files/readme_5_1.png)
-    
+![1](https://user-images.githubusercontent.com/17769927/134396237-178893ef-18f1-4df6-b3ea-fe4b235e3a27.png)
+     
 
 
 They make sense for number plate images
@@ -155,9 +154,9 @@ sns.scatterplot(data=df, x='width', y='height', alpha=.4)
 
 
 
+![2](https://user-images.githubusercontent.com/17769927/134396293-df5113b7-9237-4dfc-81ac-1a2bf6187826.png)
 
     
-![png](readme_files/readme_8_1.png)
     
 
 
@@ -337,6 +336,7 @@ I used the kaggle dataset for this.
 ```python
 imShow('./predictions.jpg')
 ```
+![predictions](https://user-images.githubusercontent.com/17769927/134396377-fb208a3c-fa7b-4616-bec6-db7ded1e07b5.png)
 
 **To process a list of images data/train.txt and save results of detection to result.json file use**
 
