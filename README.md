@@ -1,801 +1,3498 @@
-# Yolo v4, v3 and v2 for Windows and Linux
+# Data
 
-## (neural networks for object detection)
+## Kaggle
 
-Paper YOLO v4: https://arxiv.org/abs/2004.10934
+This dataset countains 433 images with PASCAL VOC annotations in .xml files  
+https://www.kaggle.com/andrewmvd/car-plate-detection
 
-Paper Scaled YOLO v4: * **[CVPR 2021](https://openaccess.thecvf.com/content/CVPR2021/html/Wang_Scaled-YOLOv4_Scaling_Cross_Stage_Partial_Network_CVPR_2021_paper.html)**: use to reproduce results: [ScaledYOLOv4](https://github.com/WongKinYiu/ScaledYOLOv4)
+### PASCAL VOC to YOLO
 
-More details in articles on medium:
 
-- [Scaled_YOLOv4](https://alexeyab84.medium.com/scaled-yolo-v4-is-the-best-neural-network-for-object-detection-on-ms-coco-dataset-39dfa22fa982?source=friends_link&sk=c8553bfed861b1a7932f739d26f487c8)
-- [YOLOv4](https://medium.com/@alexeyab84/yolov4-the-most-accurate-real-time-neural-network-on-ms-coco-dataset-73adfd3602fe?source=friends_link&sk=6039748846bbcf1d960c3061542591d7)
+```python
+# [x_xenter, y_center, obj_width, obj_height]
+# run this in root directory of your dataset
 
-Manual: https://github.com/AlexeyAB/darknet/wiki
+import os
+import bs4 as BeautifulSoup
 
-Discussion:
+annotations = []
+for e in os.listdir('./cars/annotations/'):
+    with open(os.path.join('./cars/annotations/', e)) as f:
+        soup = BeautifulSoup(f, 'lxml')
+                
+        x_min = int(soup.xmin.string)
+        x_max = int(soup.xmax.string)
+        y_min = int(soup.ymin.string)
+        y_max = int(soup.ymax.string)
+        
+        img_width = int(soup.width.string)
+        img_height = int(soup.height.string)
+        
+        obj_width = (x_max - x_min) / img_width
+        obj_height = (y_max - y_min) / img_height
+        
+        x_center = (x_max + x_min) / (2*img_width)
+        y_center = (y_max + y_min) / (2*img_height)
+        
+        item = [float('%.4f'%x_center), float('%.4f'%y_center), float('%.4f'%obj_width), float('%.4f'%obj_height)]
+        
+        annotations.append(item)
 
-- [Reddit](https://www.reddit.com/r/MachineLearning/comments/gydxzd/p_yolov4_the_most_accurate_realtime_neural/)
-- [Google-groups](https://groups.google.com/forum/#!forum/darknet)
-- [Discord](https://discord.gg/zSq8rtW)
+annotations = np.array(annotations)
 
-About Darknet framework: http://pjreddie.com/darknet/
-
-[![Darknet Continuous Integration](https://github.com/AlexeyAB/darknet/workflows/Darknet%20Continuous%20Integration/badge.svg)](https://github.com/AlexeyAB/darknet/actions?query=workflow%3A%22Darknet+Continuous+Integration%22)
-[![CircleCI](https://circleci.com/gh/AlexeyAB/darknet.svg?style=svg)](https://circleci.com/gh/AlexeyAB/darknet)
-[![TravisCI](https://travis-ci.org/AlexeyAB/darknet.svg?branch=master)](https://travis-ci.org/AlexeyAB/darknet)
-[![Contributors](https://img.shields.io/github/contributors/AlexeyAB/Darknet.svg)](https://github.com/AlexeyAB/darknet/graphs/contributors)
-[![License: Unlicense](https://img.shields.io/badge/license-Unlicense-blue.svg)](https://github.com/AlexeyAB/darknet/blob/master/LICENSE)
-[![DOI](https://zenodo.org/badge/75388965.svg)](https://zenodo.org/badge/latestdoi/75388965)
-[![arxiv.org](http://img.shields.io/badge/cs.CV-arXiv%3A2004.10934-B31B1B.svg)](https://arxiv.org/abs/2004.10934)
-[![arxiv.org](http://img.shields.io/badge/cs.CV-arXiv%3A2011.08036-B31B1B.svg)](https://arxiv.org/abs/2011.08036)
-[![colab](https://user-images.githubusercontent.com/4096485/86174089-b2709f80-bb29-11ea-9faf-3d8dc668a1a5.png)](https://colab.research.google.com/drive/12QusaaRj_lUwCGDvQNfICpa7kA7_a2dE)
-[![colab](https://user-images.githubusercontent.com/4096485/86174097-b56b9000-bb29-11ea-9240-c17f6bacfc34.png)](https://colab.research.google.com/drive/1_GdoqCJWXsChrOiY8sZMr_zbr_fH-0Fg)
-
-- [YOLOv4 model zoo](https://github.com/AlexeyAB/darknet/wiki/YOLOv4-model-zoo)
-- [Requirements (and how to install dependencies)](#requirements-for-windows-linux-and-macos)
-- [Pre-trained models](#pre-trained-models)
-- [FAQ - frequently asked questions](https://github.com/AlexeyAB/darknet/wiki/FAQ---frequently-asked-questions)
-- [Explanations in issues](https://github.com/AlexeyAB/darknet/issues?q=is%3Aopen+is%3Aissue+label%3AExplanations)
-- [Yolo v4 in other frameworks (TensorRT, TensorFlow, PyTorch, OpenVINO, OpenCV-dnn, TVM,...)](#yolo-v4-in-other-frameworks)
-- [Datasets](#datasets)
-
-- [Yolo v4, v3 and v2 for Windows and Linux](#yolo-v4-v3-and-v2-for-windows-and-linux)
-  - [(neural networks for object detection)](#neural-networks-for-object-detection)
-    - [GeForce RTX 2080 Ti](#geforce-rtx-2080-ti)
-      - [Youtube video of results](#youtube-video-of-results)
-      - [How to evaluate AP of YOLOv4 on the MS COCO evaluation server](#how-to-evaluate-ap-of-yolov4-on-the-ms-coco-evaluation-server)
-      - [How to evaluate FPS of YOLOv4 on GPU](#how-to-evaluate-fps-of-yolov4-on-gpu)
-      - [Pre-trained models](#pre-trained-models)
-    - [Requirements for Windows, Linux and macOS](#requirements-for-windows-linux-and-macos)
-    - [Yolo v4 in other frameworks](#yolo-v4-in-other-frameworks)
-      - [Datasets](#datasets)
-    - [Improvements in this repository](#improvements-in-this-repository)
-      - [How to use on the command line](#how-to-use-on-the-command-line)
-        - [For using network video-camera mjpeg-stream with any Android smartphone](#for-using-network-video-camera-mjpeg-stream-with-any-android-smartphone)
-    - [How to compile on Linux/macOS (using `CMake`)](#how-to-compile-on-linuxmacos-using-cmake)
-    - [Using also PowerShell](#using-also-powershell)
-    - [How to compile on Linux (using `make`)](#how-to-compile-on-linux-using-make)
-    - [How to compile on Windows (using `CMake`)](#how-to-compile-on-windows-using-cmake)
-    - [How to compile on Windows (using `vcpkg`)](#how-to-compile-on-windows-using-vcpkg)
-  - [How to train with multi-GPU](#how-to-train-with-multi-gpu)
-  - [How to train (to detect your custom objects)](#how-to-train-to-detect-your-custom-objects)
-    - [How to train tiny-yolo (to detect your custom objects)](#how-to-train-tiny-yolo-to-detect-your-custom-objects)
-  - [When should I stop training](#when-should-i-stop-training)
-    - [Custom object detection](#custom-object-detection)
-  - [How to improve object detection](#how-to-improve-object-detection)
-  - [How to mark bounded boxes of objects and create annotation files](#how-to-mark-bounded-boxes-of-objects-and-create-annotation-files)
-  - [How to use Yolo as DLL and SO libraries](#how-to-use-yolo-as-dll-and-so-libraries)
-- [Citation](#citation)
-
-![Darknet Logo](http://pjreddie.com/media/files/darknet-black-small.png)
-
-![scaled_yolov4](https://user-images.githubusercontent.com/4096485/112776361-281d8380-9048-11eb-8083-8728b12dcd55.png) AP50:95 - FPS (Tesla V100) Paper: https://arxiv.org/abs/2011.08036
-
-----
-
-![modern_gpus](https://user-images.githubusercontent.com/4096485/82835867-f1c62380-9ecd-11ea-9134-1598ed2abc4b.png) AP50:95 / AP50 - FPS (Tesla V100) Paper: https://arxiv.org/abs/2004.10934
-
-tkDNN-TensorRT accelerates YOLOv4 **~2x** times for batch=1 and **3x-4x** times for batch=4.
-
-- tkDNN: https://github.com/ceccocats/tkDNN
-- OpenCV: https://gist.github.com/YashasSamaga/48bdb167303e10f4d07b754888ddbdcf
-
-### GeForce RTX 2080 Ti
-
-| Network Size               | Darknet, FPS (avg) | tkDNN TensorRT FP32, FPS | tkDNN TensorRT FP16, FPS | OpenCV FP16, FPS | tkDNN TensorRT FP16 batch=4, FPS | OpenCV FP16 batch=4, FPS | tkDNN Speedup |
-|:--------------------------:|:------------------:|-------------------------:|-------------------------:|-----------------:|---------------------------------:|-------------------------:|--------------:|
-|320                         | 100                | 116                      | **202**                  | 183              | 423                              | **430**                  | **4.3x**      |
-|416                         | 82                 | 103                      | **162**                  | 159              | 284                              | **294**                  | **3.6x**      |
-|512                         | 69                 | 91                       | 134                      | **138**          | 206                              | **216**                  | **3.1x**      |
-|608                         | 53                 | 62                       | 103                      | **115**          | 150                              | **150**                  | **2.8x**      |
-|Tiny 416                    | 443                | 609                      | **790**                  | 773              | **1774**                         | 1353                     | **3.5x**      |
-|Tiny 416 CPU Core i7 7700HQ | 3.4                | -                        | -                        | 42               | -                                | 39                       | **12x**       |
-
-- Yolo v4 Full comparison: [map_fps](https://user-images.githubusercontent.com/4096485/80283279-0e303e00-871f-11ea-814c-870967d77fd1.png)
-- Yolo v4 tiny comparison: [tiny_fps](https://user-images.githubusercontent.com/4096485/85734112-6e366700-b705-11ea-95d1-fcba0de76d72.png)
-- CSPNet: [paper](https://arxiv.org/abs/1911.11929) and [map_fps](https://user-images.githubusercontent.com/4096485/71702416-6645dc00-2de0-11ea-8d65-de7d4b604021.png) comparison: https://github.com/WongKinYiu/CrossStagePartialNetworks
-- Yolo v3 on MS COCO: [Speed / Accuracy (mAP@0.5) chart](https://user-images.githubusercontent.com/4096485/52151356-e5d4a380-2683-11e9-9d7d-ac7bc192c477.jpg)
-- Yolo v3 on MS COCO (Yolo v3 vs RetinaNet) - Figure 3: https://arxiv.org/pdf/1804.02767v1.pdf
-- Yolo v2 on Pascal VOC 2007: https://hsto.org/files/a24/21e/068/a2421e0689fb43f08584de9d44c2215f.jpg
-- Yolo v2 on Pascal VOC 2012 (comp4): https://hsto.org/files/3a6/fdf/b53/3a6fdfb533f34cee9b52bdd9bb0b19d9.jpg
-
-#### Youtube video of results
-
-| [![Yolo v4](https://user-images.githubusercontent.com/4096485/101360000-1a33cf00-38ae-11eb-9e5e-b29c5fb0afbe.png)](https://youtu.be/1_SiUOYUoOI "Yolo v4") |  [![Scaled Yolo v4](https://user-images.githubusercontent.com/4096485/101359389-43a02b00-38ad-11eb-866c-f813e96bf61a.png)](https://youtu.be/YDFf-TqJOFE "Scaled Yolo v4") |
-|---|---|
-
-Others: https://www.youtube.com/user/pjreddie/videos
-
-#### How to evaluate AP of YOLOv4 on the MS COCO evaluation server
-
-1. Download and unzip test-dev2017 dataset from MS COCO server: http://images.cocodataset.org/zips/test2017.zip
-2. Download list of images for Detection tasks and replace the paths with yours: https://raw.githubusercontent.com/AlexeyAB/darknet/master/scripts/testdev2017.txt
-3. Download `yolov4.weights` file 245 MB: [yolov4.weights](https://github.com/AlexeyAB/darknet/releases/download/darknet_yolo_v3_optimal/yolov4.weights) (Google-drive mirror [yolov4.weights](https://drive.google.com/open?id=1cewMfusmPjYWbrnuJRuKhPMwRe_b9PaT) )
-4. Content of the file `cfg/coco.data` should be
-
-```ini
-classes= 80
-train  = <replace with your path>/trainvalno5k.txt
-valid = <replace with your path>/testdev2017.txt
-names = data/coco.names
-backup = backup
-eval=coco
+# Save as .txt
+for i, row in enumerate(annotations):
+    np.savetxt('./annotations/Cars{}.txt'.format(i), [row], delimiter=' ', fmt='%.4g')
 ```
 
-5. Create `/results/` folder near with `./darknet` executable file
-6. Run validation: `./darknet detector valid cfg/coco.data cfg/yolov4.cfg yolov4.weights`
-7. Rename the file  `/results/coco_results.json` to `detections_test-dev2017_yolov4_results.json` and compress it to `detections_test-dev2017_yolov4_results.zip`
-8. Submit file `detections_test-dev2017_yolov4_results.zip` to the MS COCO evaluation server for the `test-dev2019 (bbox)`
+## Download from Google Open Image
+There are two frameworks to download automaticaly:  
+https://storage.googleapis.com/openimages/web/download.html
 
-#### How to evaluate FPS of YOLOv4 on GPU
+### 1. Fiftyone (recommended by Google)
 
-1. Compile Darknet with `GPU=1 CUDNN=1 CUDNN_HALF=1 OPENCV=1` in the `Makefile`
-2. Download `yolov4.weights` file 245 MB: [yolov4.weights](https://github.com/AlexeyAB/darknet/releases/download/darknet_yolo_v3_optimal/yolov4.weights) (Google-drive mirror [yolov4.weights](https://drive.google.com/open?id=1cewMfusmPjYWbrnuJRuKhPMwRe_b9PaT) )
-3. Get any .avi/.mp4 video file (preferably not more than 1920x1080 to avoid bottlenecks in CPU performance)
-4. Run one of two commands and look at the AVG FPS:
+https://voxel51.com/docs/fiftyone/
 
-- include video_capturing + NMS + drawing_bboxes:
-    `./darknet detector demo cfg/coco.data cfg/yolov4.cfg yolov4.weights test.mp4 -dont_show -ext_output`
-- exclude video_capturing + NMS + drawing_bboxes:
-    `./darknet detector demo cfg/coco.data cfg/yolov4.cfg yolov4.weights test.mp4 -benchmark`
+### 2. OID Toolkit (My Approach)
 
-#### Pre-trained models
 
-There are weights-file for different cfg-files (trained for MS COCO dataset):
-
-FPS on RTX 2070 (R) and Tesla V100 (V):
-
-- [yolov4-p6.cfg](https://raw.githubusercontent.com/AlexeyAB/darknet/master/cfg/yolov4-p6.cfg) - 1280x1280 - **72.1% mAP@0.5 (54.0% AP@0.5:0.95) - 32(V) FPS** - xxx BFlops (xxx FMA) - 487 MB: [yolov4-p6.weights](https://github.com/AlexeyAB/darknet/releases/download/darknet_yolo_v4_pre/yolov4-p6.weights)
-  - pre-trained weights for training: https://github.com/AlexeyAB/darknet/releases/download/darknet_yolo_v4_pre/yolov4-p6.conv.289
-
-- [yolov4-p5.cfg](https://raw.githubusercontent.com/AlexeyAB/darknet/master/cfg/yolov4-p5.cfg) - 896x896 - **70.0% mAP@0.5 (51.6% AP@0.5:0.95) - 43(V) FPS** - xxx BFlops (xxx FMA) - 271 MB: [yolov4-p5.weights](https://github.com/AlexeyAB/darknet/releases/download/darknet_yolo_v4_pre/yolov4-p5.weights)
-  - pre-trained weights for training: https://github.com/AlexeyAB/darknet/releases/download/darknet_yolo_v4_pre/yolov4-p5.conv.232
-
-- [yolov4-csp-x-swish.cfg](https://raw.githubusercontent.com/AlexeyAB/darknet/master/cfg/yolov4-csp-x-swish.cfg) - 640x640 - **69.9% mAP@0.5 (51.5% AP@0.5:0.95) - 23(R) FPS / 50(V) FPS** - 221 BFlops (110 FMA) - 381 MB: [yolov4-csp-x-swish.weights](https://github.com/AlexeyAB/darknet/releases/download/darknet_yolo_v4_pre/yolov4-csp-x-swish.weights)
-  - pre-trained weights for training: https://github.com/AlexeyAB/darknet/releases/download/darknet_yolo_v4_pre/yolov4-csp-x-swish.conv.192
-
-- [yolov4-csp-swish.cfg](https://raw.githubusercontent.com/AlexeyAB/darknet/master/cfg/yolov4-csp-swish.cfg) - 640x640 - **68.7% mAP@0.5 (50.0% AP@0.5:0.95) - 70(V) FPS** - 120 (60 FMA) - 202 MB: [yolov4-csp-swish.weights](https://github.com/AlexeyAB/darknet/releases/download/darknet_yolo_v4_pre/yolov4-csp-swish.weights)
-  - pre-trained weights for training: https://github.com/AlexeyAB/darknet/releases/download/darknet_yolo_v4_pre/yolov4-csp-swish.conv.164
-
-- [yolov4x-mish.cfg](https://raw.githubusercontent.com/AlexeyAB/darknet/master/cfg/yolov4x-mish.cfg) - 640x640 - **68.5% mAP@0.5 (50.1% AP@0.5:0.95) - 23(R) FPS / 50(V) FPS** - 221 BFlops (110 FMA) - 381 MB: [yolov4x-mish.weights](https://github.com/AlexeyAB/darknet/releases/download/darknet_yolo_v4_pre/yolov4x-mish.weights)
-  - pre-trained weights for training: https://github.com/AlexeyAB/darknet/releases/download/darknet_yolo_v4_pre/yolov4x-mish.conv.166
-
-- [yolov4-csp.cfg](https://raw.githubusercontent.com/AlexeyAB/darknet/master/cfg/yolov4-csp.cfg) - 202 MB: [yolov4-csp.weights](https://github.com/AlexeyAB/darknet/releases/download/darknet_yolo_v4_pre/yolov4-csp.weights) paper [Scaled Yolo v4](https://arxiv.org/abs/2011.08036)
-
-    just change `width=` and `height=` parameters in `yolov4-csp.cfg` file and use the same `yolov4-csp.weights` file for all cases:
-  - `width=640 height=640` in cfg: **67.4% mAP@0.5 (48.7% AP@0.5:0.95) - 70(V) FPS** - 120 (60 FMA) BFlops
-  - `width=512 height=512` in cfg: **64.8% mAP@0.5 (46.2% AP@0.5:0.95) - 93(V) FPS** - 77 (39 FMA) BFlops
-  - pre-trained weights for training: https://github.com/AlexeyAB/darknet/releases/download/darknet_yolo_v4_pre/yolov4-csp.conv.142
-
-- [yolov4.cfg](https://raw.githubusercontent.com/AlexeyAB/darknet/master/cfg/yolov4.cfg) - 245 MB: [yolov4.weights](https://github.com/AlexeyAB/darknet/releases/download/darknet_yolo_v3_optimal/yolov4.weights) (Google-drive mirror [yolov4.weights](https://drive.google.com/open?id=1cewMfusmPjYWbrnuJRuKhPMwRe_b9PaT) ) paper [Yolo v4](https://arxiv.org/abs/2004.10934)
-    just change `width=` and `height=` parameters in `yolov4.cfg` file and use the same `yolov4.weights` file for all cases:
-  - `width=608 height=608` in cfg: **65.7% mAP@0.5 (43.5% AP@0.5:0.95) - 34(R) FPS / 62(V) FPS** - 128.5 BFlops
-  - `width=512 height=512` in cfg: **64.9% mAP@0.5 (43.0% AP@0.5:0.95) - 45(R) FPS / 83(V) FPS** - 91.1 BFlops
-  - `width=416 height=416` in cfg: **62.8% mAP@0.5 (41.2% AP@0.5:0.95) - 55(R) FPS / 96(V) FPS** - 60.1 BFlops
-  - `width=320 height=320` in cfg:   **60% mAP@0.5 (  38% AP@0.5:0.95) - 63(R) FPS / 123(V) FPS** - 35.5 BFlops
-
-- [yolov4-tiny.cfg](https://raw.githubusercontent.com/AlexeyAB/darknet/master/cfg/yolov4-tiny.cfg) - **40.2% mAP@0.5 - 371(1080Ti) FPS / 330(RTX2070) FPS** - 6.9 BFlops - 23.1 MB: [yolov4-tiny.weights](https://github.com/AlexeyAB/darknet/releases/download/darknet_yolo_v4_pre/yolov4-tiny.weights)
-
-- [enet-coco.cfg (EfficientNetB0-Yolov3)](https://raw.githubusercontent.com/AlexeyAB/darknet/master/cfg/enet-coco.cfg) - **45.5% mAP@0.5 - 55(R) FPS** - 3.7 BFlops - 18.3 MB: [enetb0-coco_final.weights](https://drive.google.com/file/d/1FlHeQjWEQVJt0ay1PVsiuuMzmtNyv36m/view)
-
-- [yolov3-openimages.cfg](https://raw.githubusercontent.com/AlexeyAB/darknet/master/cfg/yolov3-openimages.cfg) - 247 MB - 18(R) FPS - OpenImages dataset: [yolov3-openimages.weights](https://pjreddie.com/media/files/yolov3-openimages.weights)
-
-<details><summary><b>CLICK ME</b> - Yolo v3 models</summary>
-
-- [csresnext50-panet-spp-original-optimal.cfg](https://raw.githubusercontent.com/AlexeyAB/darknet/master/cfg/csresnext50-panet-spp-original-optimal.cfg) - **65.4% mAP@0.5 (43.2% AP@0.5:0.95) - 32(R) FPS** - 100.5 BFlops - 217 MB: [csresnext50-panet-spp-original-optimal_final.weights](https://drive.google.com/open?id=1_NnfVgj0EDtb_WLNoXV8Mo7WKgwdYZCc)
-
-- [yolov3-spp.cfg](https://raw.githubusercontent.com/AlexeyAB/darknet/master/cfg/yolov3-spp.cfg) - **60.6% mAP@0.5 - 38(R) FPS** - 141.5 BFlops - 240 MB: [yolov3-spp.weights](https://pjreddie.com/media/files/yolov3-spp.weights)
-
-- [csresnext50-panet-spp.cfg](https://raw.githubusercontent.com/AlexeyAB/darknet/master/cfg/csresnext50-panet-spp.cfg) - **60.0% mAP@0.5 - 44 FPS** - 71.3 BFlops - 217 MB: [csresnext50-panet-spp_final.weights](https://drive.google.com/file/d/1aNXdM8qVy11nqTcd2oaVB3mf7ckr258-/view?usp=sharing)
-
-- [yolov3.cfg](https://raw.githubusercontent.com/AlexeyAB/darknet/master/cfg/yolov3.cfg) - **55.3% mAP@0.5 - 66(R) FPS** - 65.9 BFlops - 236 MB: [yolov3.weights](https://pjreddie.com/media/files/yolov3.weights)
-
-- [yolov3-tiny.cfg](https://raw.githubusercontent.com/AlexeyAB/darknet/master/cfg/yolov3-tiny.cfg) - **33.1% mAP@0.5 - 345(R) FPS** - 5.6 BFlops - 33.7 MB: [yolov3-tiny.weights](https://pjreddie.com/media/files/yolov3-tiny.weights)
-
-- [yolov3-tiny-prn.cfg](https://raw.githubusercontent.com/AlexeyAB/darknet/master/cfg/yolov3-tiny-prn.cfg) - **33.1% mAP@0.5 - 370(R) FPS** - 3.5 BFlops - 18.8 MB: [yolov3-tiny-prn.weights](https://drive.google.com/file/d/18yYZWyKbo4XSDVyztmsEcF9B_6bxrhUY/view?usp=sharing)
-
-</details>
-
-<details><summary><b>CLICK ME</b> - Yolo v2 models</summary>
-
-- `yolov2.cfg` (194 MB COCO Yolo v2) - requires 4 GB GPU-RAM: https://pjreddie.com/media/files/yolov2.weights
-- `yolo-voc.cfg` (194 MB VOC Yolo v2) - requires 4 GB GPU-RAM: http://pjreddie.com/media/files/yolo-voc.weights
-- `yolov2-tiny.cfg` (43 MB COCO Yolo v2) - requires 1 GB GPU-RAM: https://pjreddie.com/media/files/yolov2-tiny.weights
-- `yolov2-tiny-voc.cfg` (60 MB VOC Yolo v2) - requires 1 GB GPU-RAM: http://pjreddie.com/media/files/yolov2-tiny-voc.weights
-- `yolo9000.cfg` (186 MB Yolo9000-model) - requires 4 GB GPU-RAM: http://pjreddie.com/media/files/yolo9000.weights
-
-</details>
-
-Put it near compiled: darknet.exe
-
-You can get cfg-files by path: `darknet/cfg/`
-
-### Requirements for Windows, Linux and macOS
-
-- **CMake >= 3.18**: https://cmake.org/download/
-- **Powershell** (already installed on windows): https://docs.microsoft.com/en-us/powershell/scripting/install/installing-powershell
-- **CUDA >= 10.2**: https://developer.nvidia.com/cuda-toolkit-archive (on Linux do [Post-installation Actions](https://docs.nvidia.com/cuda/cuda-installation-guide-linux/index.html#post-installation-actions))
-- **OpenCV >= 2.4**: use your preferred package manager (brew, apt), build from source using [vcpkg](https://github.com/Microsoft/vcpkg) or download from [OpenCV official site](https://opencv.org/releases.html) (on Windows set system variable `OpenCV_DIR` = `C:\opencv\build` - where are the `include` and `x64` folders [image](https://user-images.githubusercontent.com/4096485/53249516-5130f480-36c9-11e9-8238-a6e82e48c6f2.png))
-- **cuDNN >= 8.0.2** https://developer.nvidia.com/rdp/cudnn-archive (on **Linux** copy `cudnn.h`,`libcudnn.so`... as described here https://docs.nvidia.com/deeplearning/sdk/cudnn-install/index.html#installlinux-tar , on **Windows** copy `cudnn.h`,`cudnn64_7.dll`, `cudnn64_7.lib` as described here https://docs.nvidia.com/deeplearning/sdk/cudnn-install/index.html#installwindows )
-- **GPU with CC >= 3.0**: https://en.wikipedia.org/wiki/CUDA#GPUs_supported
-
-### Yolo v4 in other frameworks
-
-- **Pytorch - Scaled-YOLOv4:** https://github.com/WongKinYiu/ScaledYOLOv4
-- **TensorFlow:** `pip install yolov4` YOLOv4 on TensorFlow 2.0 / TFlite / Android: https://github.com/hunglc007/tensorflow-yolov4-tflite
-    Official TF models: https://github.com/tensorflow/models/tree/master/official/vision/beta/projects/yolo
-    For YOLOv4 - convert `yolov4.weights`/`cfg` files to `yolov4.pb` by using [TNTWEN](https://github.com/TNTWEN/OpenVINO-YOLOV4) project, and to `yolov4.tflite` [TensorFlow-lite](https://www.tensorflow.org/lite/guide/get_started#2_convert_the_model_format)
-- **OpenCV** the fastest implementation of YOLOv4 for CPU (x86/ARM-Android), OpenCV can be compiled with [OpenVINO-backend](https://github.com/opencv/opencv/wiki/Intel's-Deep-Learning-Inference-Engine-backend) for running on (Myriad X / USB Neural Compute Stick / Arria FPGA), use `yolov4.weights`/`cfg` with: [C++ example](https://github.com/opencv/opencv/blob/8c25a8eb7b10fb50cda323ee6bec68aa1a9ce43c/samples/dnn/object_detection.cpp#L192-L221) or [Python example](https://github.com/opencv/opencv/blob/8c25a8eb7b10fb50cda323ee6bec68aa1a9ce43c/samples/dnn/object_detection.py#L129-L150)
-- **Intel OpenVINO 2021.2:** supports YOLOv4 (NPU Myriad X / USB Neural Compute Stick / Arria FPGA): https://devmesh.intel.com/projects/openvino-yolov4-49c756 read this [manual](https://github.com/TNTWEN/OpenVINO-YOLOV4) (old [manual](https://software.intel.com/en-us/articles/OpenVINO-Using-TensorFlow#converting-a-darknet-yolo-model) ) (for [Scaled-YOLOv4](https://github.com/WongKinYiu/ScaledYOLOv4/tree/yolov4-large) models use https://github.com/Chen-MingChang/pytorch_YOLO_OpenVINO_demo )
-- **PyTorch > ONNX**:
-  - [WongKinYiu/PyTorch_YOLOv4](https://github.com/WongKinYiu/PyTorch_YOLOv4)
-  - [maudzung/3D-YOLOv4](https://github.com/maudzung/Complex-YOLOv4-Pytorch)
-  - [Tianxiaomo/pytorch-YOLOv4](https://github.com/Tianxiaomo/pytorch-YOLOv4)
-  - [YOLOv5](https://github.com/ultralytics/yolov5)
-- **ONNX** on Jetson for YOLOv4: https://developer.nvidia.com/blog/announcing-onnx-runtime-for-jetson/ and https://github.com/ttanzhiqiang/onnx_tensorrt_project
-- **nVidia Transfer Learning Toolkit (TLT>=3.0)** Training and Detection https://docs.nvidia.com/metropolis/TLT/tlt-user-guide/text/object_detection/yolo_v4.html
-- **TensorRT+tkDNN**: https://github.com/ceccocats/tkDNN#fps-results
-- **Deepstream 5.0 / TensorRT for YOLOv4** https://github.com/NVIDIA-AI-IOT/yolov4_deepstream or https://github.com/marcoslucianops/DeepStream-Yolo read [Yolo is natively supported in DeepStream 4.0](https://news.developer.nvidia.com/deepstream-sdk-4-now-available/) and [PDF](https://docs.nvidia.com/metropolis/deepstream/Custom_YOLO_Model_in_the_DeepStream_YOLO_App.pdf). Additionally [jkjung-avt/tensorrt_demos](https://github.com/jkjung-avt/tensorrt_demos) or [wang-xinyu/tensorrtx](https://github.com/wang-xinyu/tensorrtx)
-- **Triton Inference Server / TensorRT** https://github.com/isarsoft/yolov4-triton-tensorrt
-- **DirectML** https://github.com/microsoft/DirectML/tree/master/Samples/yolov4
-- **OpenCL** (Intel, AMD, Mali GPUs for macOS & GNU/Linux) https://github.com/sowson/darknet
-- **HIP** for Training and Detection on AMD GPU https://github.com/os-hackathon/darknet
-- **ROS** (Robot Operating System) https://github.com/engcang/ros-yolo-sort
-- **Xilinx Zynq Ultrascale+ Deep Learning Processor (DPU) ZCU102/ZCU104:** https://github.com/Xilinx/Vitis-In-Depth-Tutorial/tree/master/Machine_Learning/Design_Tutorials/07-yolov4-tutorial
-- **Amazon Neurochip / Amazon EC2 Inf1 instances** 1.85 times higher throughput and 37% lower cost per image for TensorFlow based YOLOv4 model, using Keras [URL](https://aws.amazon.com/ru/blogs/machine-learning/improving-performance-for-deep-learning-based-object-detection-with-an-aws-neuron-compiled-yolov4-model-on-aws-inferentia/)
-- **TVM** - compilation of deep learning models (Keras, MXNet, PyTorch, Tensorflow, CoreML, DarkNet) into minimum deployable modules on diverse hardware backend (CPUs, GPUs, FPGA, and specialized accelerators): https://tvm.ai/about
-- **Tencent/ncnn:** the fastest inference of YOLOv4 on mobile phone CPU: https://github.com/Tencent/ncnn
-- **OpenDataCam** - It detects, tracks and counts moving objects by using YOLOv4: https://github.com/opendatacam/opendatacam#-hardware-pre-requisite
-- **Netron** - Visualizer for neural networks: https://github.com/lutzroeder/netron
-
-#### Datasets
-
-- MS COCO: use `./scripts/get_coco_dataset.sh` to get labeled MS COCO detection dataset
-- OpenImages: use `python ./scripts/get_openimages_dataset.py` for labeling train detection dataset
-- Pascal VOC: use `python ./scripts/voc_label.py` for labeling Train/Test/Val detection datasets
-- ILSVRC2012 (ImageNet classification): use `./scripts/get_imagenet_train.sh` (also `imagenet_label.sh` for labeling valid set)
-- German/Belgium/Russian/LISA/MASTIF Traffic Sign Datasets for Detection - use this parsers: https://github.com/angeligareta/Datasets2Darknet#detection-task
-- List of other datasets: https://github.com/AlexeyAB/darknet/tree/master/scripts#datasets
-
-### Improvements in this repository
-
-- developed State-of-the-Art object detector YOLOv4
-- added State-of-Art models: CSP, PRN, EfficientNet
-- added layers: [conv_lstm], [scale_channels] SE/ASFF/BiFPN, [local_avgpool], [sam], [Gaussian_yolo], [reorg3d] (fixed [reorg]), fixed [batchnorm]
-- added the ability for training recurrent models (with layers conv-lstm`[conv_lstm]`/conv-rnn`[crnn]`) for accurate detection on video
-- added data augmentation: `[net] mixup=1 cutmix=1 mosaic=1 blur=1`. Added activations: SWISH, MISH, NORM_CHAN, NORM_CHAN_SOFTMAX
-- added the ability for training with GPU-processing using CPU-RAM to increase the mini_batch_size and increase accuracy (instead of batch-norm sync)
-- improved binary neural network performance **2x-4x times** for Detection on CPU and GPU if you trained your own weights by using this XNOR-net model (bit-1 inference) : https://github.com/AlexeyAB/darknet/blob/master/cfg/yolov3-tiny_xnor.cfg
-- improved neural network performance **~7%** by fusing 2 layers into 1: Convolutional + Batch-norm
-- improved performance: Detection **2x times**, on GPU Volta/Turing (Tesla V100, GeForce RTX, ...) using Tensor Cores if `CUDNN_HALF` defined in the `Makefile` or `darknet.sln`
-- improved performance **~1.2x** times on FullHD, **~2x** times on 4K, for detection on the video (file/stream) using `darknet detector demo`...
-- improved performance **3.5 X times** of data augmentation for training (using OpenCV SSE/AVX functions instead of hand-written functions) - removes bottleneck for training on multi-GPU or GPU Volta
-- improved performance of detection and training on Intel CPU with AVX (Yolo v3 **~85%**)
-- optimized memory allocation during network resizing when `random=1`
-- optimized GPU initialization for detection - we use batch=1 initially instead of re-init with batch=1
-- added correct calculation of **mAP, F1, IoU, Precision-Recall** using command `darknet detector map`...
-- added drawing of chart of average-Loss and accuracy-mAP (`-map` flag) during training
-- run `./darknet detector demo ... -json_port 8070 -mjpeg_port 8090` as JSON and MJPEG server to get results online over the network by using your soft or Web-browser
-- added calculation of anchors for training
-- added example of Detection and Tracking objects: https://github.com/AlexeyAB/darknet/blob/master/src/yolo_console_dll.cpp
-- run-time tips and warnings if you use incorrect cfg-file or dataset
-- added support for Windows
-- many other fixes of code...
-
-And added manual - [How to train Yolo v4-v2 (to detect your custom objects)](#how-to-train-to-detect-your-custom-objects)
-
-Also, you might be interested in using a simplified repository where is implemented INT8-quantization (+30% speedup and -1% mAP reduced): https://github.com/AlexeyAB/yolo2_light
-
-#### How to use on the command line
-
-On Linux use `./darknet` instead of `darknet.exe`, like this:`./darknet detector test ./cfg/coco.data ./cfg/yolov4.cfg ./yolov4.weights`
-
-On Linux find executable file `./darknet` in the root directory, while on Windows find it in the directory `\build\darknet\x64`
-
-- Yolo v4 COCO - **image**: `darknet.exe detector test cfg/coco.data cfg/yolov4.cfg yolov4.weights -thresh 0.25`
-- **Output coordinates** of objects: `darknet.exe detector test cfg/coco.data yolov4.cfg yolov4.weights -ext_output dog.jpg`
-- Yolo v4 COCO - **video**: `darknet.exe detector demo cfg/coco.data cfg/yolov4.cfg yolov4.weights -ext_output test.mp4`
-- Yolo v4 COCO - **WebCam 0**: `darknet.exe detector demo cfg/coco.data cfg/yolov4.cfg yolov4.weights -c 0`
-- Yolo v4 COCO for **net-videocam** - Smart WebCam: `darknet.exe detector demo cfg/coco.data cfg/yolov4.cfg yolov4.weights http://192.168.0.80:8080/video?dummy=param.mjpg`
-- Yolo v4 - **save result videofile res.avi**: `darknet.exe detector demo cfg/coco.data cfg/yolov4.cfg yolov4.weights test.mp4 -out_filename res.avi`
-- Yolo v3 **Tiny** COCO - video: `darknet.exe detector demo cfg/coco.data cfg/yolov3-tiny.cfg yolov3-tiny.weights test.mp4`
-- **JSON and MJPEG server** that allows multiple connections from your soft or Web-browser `ip-address:8070` and 8090: `./darknet detector demo ./cfg/coco.data ./cfg/yolov3.cfg ./yolov3.weights test50.mp4 -json_port 8070 -mjpeg_port 8090 -ext_output`
-- Yolo v3 Tiny **on GPU #1**: `darknet.exe detector demo cfg/coco.data cfg/yolov3-tiny.cfg yolov3-tiny.weights -i 1 test.mp4`
-- Alternative method Yolo v3 COCO - image: `darknet.exe detect cfg/yolov4.cfg yolov4.weights -i 0 -thresh 0.25`
-- Train on **Amazon EC2**, to see mAP & Loss-chart using URL like: `http://ec2-35-160-228-91.us-west-2.compute.amazonaws.com:8090` in the Chrome/Firefox (**Darknet should be compiled with OpenCV**):
-    `./darknet detector train cfg/coco.data yolov4.cfg yolov4.conv.137 -dont_show -mjpeg_port 8090 -map`
-- 186 MB Yolo9000 - image: `darknet.exe detector test cfg/combine9k.data cfg/yolo9000.cfg yolo9000.weights`
-- Remember to put data/9k.tree and data/coco9k.map under the same folder of your app if you use the cpp api to build an app
-- To process a list of images `data/train.txt` and save results of detection to `result.json` file use:
-    `darknet.exe detector test cfg/coco.data cfg/yolov4.cfg yolov4.weights -ext_output -dont_show -out result.json < data/train.txt`
-- To process a list of images `data/train.txt` and save results of detection to `result.txt` use:
-    `darknet.exe detector test cfg/coco.data cfg/yolov4.cfg yolov4.weights -dont_show -ext_output < data/train.txt > result.txt`
-- Pseudo-labelling - to process a list of images `data/new_train.txt` and save results of detection in Yolo training format for each image as label `<image_name>.txt` (in this way you can increase the amount of training data) use:
-    `darknet.exe detector test cfg/coco.data cfg/yolov4.cfg yolov4.weights -thresh 0.25 -dont_show -save_labels < data/new_train.txt`
-- To calculate anchors: `darknet.exe detector calc_anchors data/obj.data -num_of_clusters 9 -width 416 -height 416`
-- To check accuracy mAP@IoU=50: `darknet.exe detector map data/obj.data yolo-obj.cfg backup\yolo-obj_7000.weights`
-- To check accuracy mAP@IoU=75: `darknet.exe detector map data/obj.data yolo-obj.cfg backup\yolo-obj_7000.weights -iou_thresh 0.75`
-
-##### For using network video-camera mjpeg-stream with any Android smartphone
-
-1. Download for Android phone mjpeg-stream soft: IP Webcam / Smart WebCam
-
-    - Smart WebCam - preferably: https://play.google.com/store/apps/details?id=com.acontech.android.SmartWebCam2
-    - IP Webcam: https://play.google.com/store/apps/details?id=com.pas.webcam
-
-2. Connect your Android phone to computer by WiFi (through a WiFi-router) or USB
-3. Start Smart WebCam on your phone
-4. Replace the address below, on shown in the phone application (Smart WebCam) and launch:
-
-- Yolo v4 COCO-model: `darknet.exe detector demo data/coco.data yolov4.cfg yolov4.weights http://192.168.0.80:8080/video?dummy=param.mjpg -i 0`
-
-### How to compile on Linux/macOS (using `CMake`)
-
-The `CMakeLists.txt` will attempt to find installed optional dependencies like CUDA, cudnn, ZED and build against those. It will also create a shared object library file to use `darknet` for code development.
-
-To update CMake on Ubuntu, it's better to follow guide here: https://apt.kitware.com/ or https://cmake.org/download/
-
-```bash
-git clone https://github.com/AlexeyAB/darknet
-cd darknet
-mkdir build_release
-cd build_release
-cmake ..
-cmake --build . --target install --parallel 8
+```python
+# clone repo
+!git clone https://github.com/EscVM/OIDv4_ToolKit
 ```
 
-### Using also PowerShell
 
-Install: `Cmake`, `CUDA`, `cuDNN` [How to install dependencies](#requirements)
-
-Install powershell for your OS (Linux or MacOS) ([guide here](https://docs.microsoft.com/en-us/powershell/scripting/install/installing-powershell)).
-
-Open PowerShell type these commands
-
-```PowerShell
-git clone https://github.com/AlexeyAB/darknet
-cd darknet
-./build.ps1 -UseVCPKG -EnableOPENCV -EnableCUDA -EnableCUDNN
+```python
+%cd ./OIDv4_ToolKit
 ```
 
-- remove options like `-EnableCUDA` or `-EnableCUDNN` if you are not interested into
-- remove option `-UseVCPKG` if you plan to manually provide OpenCV library to darknet or if you do not want to enable OpenCV integration
-- add option `-EnableOPENCV_CUDA` if you want to build OpenCV with CUDA support - very slow to build! (requires `-UseVCPKG`)
+#### 1. Download and Split
+*   Train set: 2000 Images 
+*   Validation set: 386 Images 
 
-If you open the `build.ps1` script at the beginning you will find all available switches.
+*All available validation images are 386 images
 
-### How to compile on Linux (using `make`)
 
-Just do `make` in the darknet directory. (You can try to compile and run it on Google Colab in cloud [link](https://colab.research.google.com/drive/12QusaaRj_lUwCGDvQNfICpa7kA7_a2dE) (press «Open in Playground» button at the top-left corner) and watch the video [link](https://www.youtube.com/watch?v=mKAEGSxwOAY) )
-Before make, you can set such options in the `Makefile`: [link](https://github.com/AlexeyAB/darknet/blob/9c1b9a2cf6363546c152251be578a21f3c3caec6/Makefile#L1)
-
-- `GPU=1` to build with CUDA to accelerate by using GPU (CUDA should be in `/usr/local/cuda`)
-- `CUDNN=1` to build with cuDNN v5-v7 to accelerate training by using GPU (cuDNN should be in `/usr/local/cudnn`)
-- `CUDNN_HALF=1` to build for Tensor Cores (on Titan V / Tesla V100 / DGX-2 and later) speedup Detection 3x, Training 2x
-- `OPENCV=1` to build with OpenCV 4.x/3.x/2.4.x - allows to detect on video files and video streams from network cameras or web-cams
-- `DEBUG=1` to build debug version of Yolo
-- `OPENMP=1` to build with OpenMP support to accelerate Yolo by using multi-core CPU
-- `LIBSO=1` to build a library `darknet.so` and binary runnable file `uselib` that uses this library. Or you can try to run so `LD_LIBRARY_PATH=./:$LD_LIBRARY_PATH ./uselib test.mp4` How to use this SO-library from your own code - you can look at C++ example: https://github.com/AlexeyAB/darknet/blob/master/src/yolo_console_dll.cpp
-    or use in such a way: `LD_LIBRARY_PATH=./:$LD_LIBRARY_PATH ./uselib data/coco.names cfg/yolov4.cfg yolov4.weights test.mp4`
-- `ZED_CAMERA=1` to build a library with ZED-3D-camera support (should be ZED SDK installed), then run
-    `LD_LIBRARY_PATH=./:$LD_LIBRARY_PATH ./uselib data/coco.names cfg/yolov4.cfg yolov4.weights zed_camera`
-- You also need to specify for which graphics card the code is generated. This is done by setting `ARCH=`. If you use a never version than CUDA 11 you further need to edit line 20 from Makefile and remove `-gencode arch=compute_30,code=sm_30 \` as Kepler GPU support was dropped in CUDA 11. You can also drop the general `ARCH=` and just uncomment `ARCH=` for your graphics card.
-
-To run Darknet on Linux use examples from this article, just use `./darknet` instead of `darknet.exe`, i.e. use this command: `./darknet detector test ./cfg/coco.data ./cfg/yolov4.cfg ./yolov4.weights`
-
-### How to compile on Windows (using `CMake`)
-
-Requires:
-
-- MSVC: https://visualstudio.microsoft.com/thank-you-downloading-visual-studio/?sku=Community
-- CMake GUI: `Windows win64-x64 Installer`https://cmake.org/download/
-- Download Darknet zip-archive with the latest commit and uncompress it: [master.zip](https://github.com/AlexeyAB/darknet/archive/master.zip)
-
-In Windows:
-
-- Start (button) -> All programs -> CMake -> CMake (gui) ->
-
-- [look at image](https://habrastorage.org/webt/pz/s1/uu/pzs1uu4heb7vflfcjqn-lxy-aqu.jpeg) In CMake: Enter input path to the darknet Source, and output path to the Binaries -> Configure (button) -> Optional platform for generator: `x64`  -> Finish -> Generate -> Open Project ->
-
-- in MS Visual Studio: Select: x64 and Release -> Build -> Build solution
-
-- find the executable file `darknet.exe` in the output path to the binaries you specified
-
-![x64 and Release](https://habrastorage.org/webt/ay/ty/f-/aytyf-8bufe7q-16yoecommlwys.jpeg)
-
-### How to compile on Windows (using `vcpkg`)
-
-This is the recommended approach to build Darknet on Windows.
-
-1. Install Visual Studio 2017 or 2019. In case you need to download it, please go here: [Visual Studio Community](http://visualstudio.com). Remember to install English language pack, this is mandatory for vcpkg!
-
-2. Install CUDA enabling VS Integration during installation.
-
-3. Open Powershell (Start -> All programs -> Windows Powershell) and type these commands:
-
-```PowerShell
-Set-ExecutionPolicy unrestricted -Scope CurrentUser -Force
-git clone https://github.com/AlexeyAB/darknet
-cd darknet
-.\build.ps1 -UseVCPKG -EnableOPENCV -EnableCUDA -EnableCUDNN
+```python
+# Train set
+!python3 main.py downloader --classes Vehicle_registration_plate --type_csv train --limit 400
 ```
 
-(add option `-EnableOPENCV_CUDA` if you want to build OpenCV with CUDA support - very slow to build! - or remove options like `-EnableCUDA` or `-EnableCUDNN` if you are not interested in them). If you open the `build.ps1` script at the beginning you will find all available switches.
 
-## How to train with multi-GPU
-
-1. Train it first on 1 GPU for like 1000 iterations: `darknet.exe detector train cfg/coco.data cfg/yolov4.cfg yolov4.conv.137`
-
-2. Then stop and by using partially-trained model `/backup/yolov4_1000.weights` run training with multigpu (up to 4 GPUs): `darknet.exe detector train cfg/coco.data cfg/yolov4.cfg /backup/yolov4_1000.weights -gpus 0,1,2,3`
-
-If you get a Nan, then for some datasets better to decrease learning rate, for 4 GPUs set `learning_rate = 0,00065` (i.e. learning_rate = 0.00261 / GPUs). In this case also increase 4x times `burn_in =` in your cfg-file. I.e. use `burn_in = 4000` instead of `1000`.
-
-https://groups.google.com/d/msg/darknet/NbJqonJBTSY/Te5PfIpuCAAJ
-
-## How to train (to detect your custom objects)
-
-(to train old Yolo v2 `yolov2-voc.cfg`, `yolov2-tiny-voc.cfg`, `yolo-voc.cfg`, `yolo-voc.2.0.cfg`, ... [click by the link](https://github.com/AlexeyAB/darknet/tree/47c7af1cea5bbdedf1184963355e6418cb8b1b4f#how-to-train-pascal-voc-data))
-
-Training Yolo v4 (and v3):
-
-0. For training `cfg/yolov4-custom.cfg` download the pre-trained weights-file (162 MB): [yolov4.conv.137](https://github.com/AlexeyAB/darknet/releases/download/darknet_yolo_v3_optimal/yolov4.conv.137) (Google drive mirror [yolov4.conv.137](https://drive.google.com/open?id=1JKF-bdIklxOOVy-2Cr5qdvjgGpmGfcbp) )
-1. Create file `yolo-obj.cfg` with the same content as in `yolov4-custom.cfg` (or copy `yolov4-custom.cfg` to `yolo-obj.cfg)` and:
-
-- change line batch to [`batch=64`](https://github.com/AlexeyAB/darknet/blob/0039fd26786ab5f71d5af725fc18b3f521e7acfd/cfg/yolov3.cfg#L3)
-- change line subdivisions to [`subdivisions=16`](https://github.com/AlexeyAB/darknet/blob/0039fd26786ab5f71d5af725fc18b3f521e7acfd/cfg/yolov3.cfg#L4)
-- change line max_batches to (`classes*2000`, but not less than number of training images and not less than `6000`), f.e. [`max_batches=6000`](https://github.com/AlexeyAB/darknet/blob/0039fd26786ab5f71d5af725fc18b3f521e7acfd/cfg/yolov3.cfg#L20) if you train for 3 classes
-- change line steps to 80% and 90% of max_batches, f.e. [`steps=4800,5400`](https://github.com/AlexeyAB/darknet/blob/0039fd26786ab5f71d5af725fc18b3f521e7acfd/cfg/yolov3.cfg#L22)
-- set network size `width=416 height=416` or any value multiple of 32: https://github.com/AlexeyAB/darknet/blob/0039fd26786ab5f71d5af725fc18b3f521e7acfd/cfg/yolov3.cfg#L8-L9
-- change line `classes=80` to your number of objects in each of 3 `[yolo]`-layers:
-  - https://github.com/AlexeyAB/darknet/blob/0039fd26786ab5f71d5af725fc18b3f521e7acfd/cfg/yolov3.cfg#L610
-  - https://github.com/AlexeyAB/darknet/blob/0039fd26786ab5f71d5af725fc18b3f521e7acfd/cfg/yolov3.cfg#L696
-  - https://github.com/AlexeyAB/darknet/blob/0039fd26786ab5f71d5af725fc18b3f521e7acfd/cfg/yolov3.cfg#L783
-- change [`filters=255`] to filters=(classes + 5)x3 in the 3 `[convolutional]` before each `[yolo]` layer, keep in mind that it only has to be the last `[convolutional]` before each of the `[yolo]` layers.
-  - https://github.com/AlexeyAB/darknet/blob/0039fd26786ab5f71d5af725fc18b3f521e7acfd/cfg/yolov3.cfg#L603
-  - https://github.com/AlexeyAB/darknet/blob/0039fd26786ab5f71d5af725fc18b3f521e7acfd/cfg/yolov3.cfg#L689
-  - https://github.com/AlexeyAB/darknet/blob/0039fd26786ab5f71d5af725fc18b3f521e7acfd/cfg/yolov3.cfg#L776
-- when using [`[Gaussian_yolo]`](https://github.com/AlexeyAB/darknet/blob/6e5bdf1282ad6b06ed0e962c3f5be67cf63d96dc/cfg/Gaussian_yolov3_BDD.cfg#L608)  layers, change [`filters=57`] filters=(classes + 9)x3 in the 3 `[convolutional]` before each `[Gaussian_yolo]` layer
-  - https://github.com/AlexeyAB/darknet/blob/6e5bdf1282ad6b06ed0e962c3f5be67cf63d96dc/cfg/Gaussian_yolov3_BDD.cfg#L604
-  - https://github.com/AlexeyAB/darknet/blob/6e5bdf1282ad6b06ed0e962c3f5be67cf63d96dc/cfg/Gaussian_yolov3_BDD.cfg#L696
-  - https://github.com/AlexeyAB/darknet/blob/6e5bdf1282ad6b06ed0e962c3f5be67cf63d96dc/cfg/Gaussian_yolov3_BDD.cfg#L789
-
-So if `classes=1` then should be `filters=18`. If `classes=2` then write `filters=21`.
-**(Do not write in the cfg-file: filters=(classes + 5)x3)**
-
-(Generally `filters` depends on the `classes`, `coords` and number of `mask`s, i.e. filters=`(classes + coords + 1)*<number of mask>`, where `mask` is indices of anchors. If `mask` is absence, then filters=`(classes + coords + 1)*num`)
-
-So for example, for 2 objects, your file `yolo-obj.cfg` should differ from `yolov4-custom.cfg` in such lines in each of **3** [yolo]-layers:
-
-```ini
-[convolutional]
-filters=21
-
-[region]
-classes=2
+```python
+# Validation + Test ==> 20% of the size of train set
+!python3 main.py downloader --classes Vehicle_registration_plate --type_csv validation --limit 400
 ```
 
-2. Create file `obj.names` in the directory `build\darknet\x64\data\`, with objects names - each in new line
-3. Create file `obj.data` in the directory `build\darknet\x64\data\`, containing (where **classes = number of objects**):
+#### 2. Convert to YOLOv4
 
-  ```ini
-  classes = 2
-  train  = data/train.txt
-  valid  = data/test.txt
-  names = data/obj.names
-  backup = backup/
-  ```
+##### 1. Change classes.txt (in root directory of OIDv4_ToolKit) to 'Vehicle registration plate'
 
-4. Put image-files (.jpg) of your objects in the directory `build\darknet\x64\data\obj\`
-5. You should label each object on images from your dataset. Use this visual GUI-software for marking bounded boxes of objects and generating annotation files for Yolo v2 & v3: https://github.com/AlexeyAB/Yolo_mark
+##### 2. Run this code in OID Tookit root directory
 
-It will create `.txt`-file for each `.jpg`-image-file - in the same directory and with the same name, but with `.txt`-extension, and put to file: object number and object coordinates on this image, for each object in new line:
+*   This file doesnt exist in official repo but you can find it in my repository.
 
-`<object-class> <x_center> <y_center> <width> <height>`
 
-  Where:
 
-- `<object-class>` - integer object number from `0` to `(classes-1)`
-- `<x_center> <y_center> <width> <height>` - float values **relative** to width and height of image, it can be equal from `(0.0 to 1.0]`
-- for example: `<x> = <absolute_x> / <image_width>` or `<height> = <absolute_height> / <image_height>`
-- attention: `<x_center> <y_center>` - are center of rectangle (are not top-left corner)
 
-  For example for `img1.jpg` you will be created `img1.txt` containing:
-
-  ```csv
-  1 0.716797 0.395833 0.216406 0.147222
-  0 0.687109 0.379167 0.255469 0.158333
-  1 0.420312 0.395833 0.140625 0.166667
-  ```
-
-6. Create file `train.txt` in directory `build\darknet\x64\data\`, with filenames of your images, each filename in new line, with path relative to `darknet.exe`, for example containing:
-
-  ```csv
-  data/obj/img1.jpg
-  data/obj/img2.jpg
-  data/obj/img3.jpg
-  ```
-
-7. Download pre-trained weights for the convolutional layers and put to the directory `build\darknet\x64`
-    - for `yolov4.cfg`, `yolov4-custom.cfg` (162 MB): [yolov4.conv.137](https://github.com/AlexeyAB/darknet/releases/download/darknet_yolo_v3_optimal/yolov4.conv.137) (Google drive mirror [yolov4.conv.137](https://drive.google.com/open?id=1JKF-bdIklxOOVy-2Cr5qdvjgGpmGfcbp) )
-    - for `yolov4-tiny.cfg`, `yolov4-tiny-3l.cfg`, `yolov4-tiny-custom.cfg` (19 MB): [yolov4-tiny.conv.29](https://github.com/AlexeyAB/darknet/releases/download/darknet_yolo_v4_pre/yolov4-tiny.conv.29)  
-    - for `csresnext50-panet-spp.cfg` (133 MB): [csresnext50-panet-spp.conv.112](https://drive.google.com/file/d/16yMYCLQTY_oDlCIZPfn_sab6KD3zgzGq/view?usp=sharing)
-    - for `yolov3.cfg, yolov3-spp.cfg` (154 MB): [darknet53.conv.74](https://pjreddie.com/media/files/darknet53.conv.74)
-    - for `yolov3-tiny-prn.cfg , yolov3-tiny.cfg` (6 MB): [yolov3-tiny.conv.11](https://drive.google.com/file/d/18v36esoXCh-PsOKwyP2GWrpYDptDY8Zf/view?usp=sharing)
-    - for `enet-coco.cfg (EfficientNetB0-Yolov3)` (14 MB): [enetb0-coco.conv.132](https://drive.google.com/file/d/1uhh3D6RSn0ekgmsaTcl-ZW53WBaUDo6j/view?usp=sharing)
-
-8. Start training by using the command line: `darknet.exe detector train data/obj.data yolo-obj.cfg yolov4.conv.137`
-
-   To train on Linux use command: `./darknet detector train data/obj.data yolo-obj.cfg yolov4.conv.137` (just use `./darknet` instead of `darknet.exe`)
-
-   - (file `yolo-obj_last.weights` will be saved to the `build\darknet\x64\backup\` for each 100 iterations)
-   - (file `yolo-obj_xxxx.weights` will be saved to the `build\darknet\x64\backup\` for each 1000 iterations)
-   - (to disable Loss-Window use `darknet.exe detector train data/obj.data yolo-obj.cfg yolov4.conv.137 -dont_show`, if you train on computer without monitor like a cloud Amazon EC2)
-   - (to see the mAP & Loss-chart during training on remote server without GUI, use command `darknet.exe detector train data/obj.data yolo-obj.cfg yolov4.conv.137 -dont_show -mjpeg_port 8090 -map` then open URL `http://ip-address:8090` in Chrome/Firefox browser)
-
-8.1. For training with mAP (mean average precisions) calculation for each 4 Epochs (set `valid=valid.txt` or `train.txt` in `obj.data` file) and run: `darknet.exe detector train data/obj.data yolo-obj.cfg yolov4.conv.137 -map`
-
-9. After training is complete - get result `yolo-obj_final.weights` from path `build\darknet\x64\backup\`
-
-   - After each 100 iterations you can stop and later start training from this point. For example, after 2000 iterations you can stop training, and later just start training using: `darknet.exe detector train data/obj.data yolo-obj.cfg backup\yolo-obj_2000.weights`
-
-    (in the original repository https://github.com/pjreddie/darknet the weights-file is saved only once every 10 000 iterations `if(iterations > 1000)`)
-
-   - Also you can get result earlier than all 45000 iterations.
-
- **Note:** If during training you see `nan` values for `avg` (loss) field - then training goes wrong, but if `nan` is in some other lines - then training goes well.
-
- **Note:** If you changed width= or height= in your cfg-file, then new width and height must be divisible by 32.
-
- **Note:** After training use such command for detection: `darknet.exe detector test data/obj.data yolo-obj.cfg yolo-obj_8000.weights`
-
-  **Note:** if error `Out of memory` occurs then in `.cfg`-file you should increase `subdivisions=16`, 32 or 64: [link](https://github.com/AlexeyAB/darknet/blob/0039fd26786ab5f71d5af725fc18b3f521e7acfd/cfg/yolov3.cfg#L4)
-
-### How to train tiny-yolo (to detect your custom objects)
-
-Do all the same steps as for the full yolo model as described above. With the exception of:
-
-- Download file with the first 29-convolutional layers of yolov4-tiny: https://github.com/AlexeyAB/darknet/releases/download/darknet_yolo_v4_pre/yolov4-tiny.conv.29
- (Or get this file from yolov4-tiny.weights file by using command: `darknet.exe partial cfg/yolov4-tiny-custom.cfg yolov4-tiny.weights yolov4-tiny.conv.29 29`
-- Make your custom model `yolov4-tiny-obj.cfg` based on `cfg/yolov4-tiny-custom.cfg` instead of `yolov4.cfg`
-- Start training: `darknet.exe detector train data/obj.data yolov4-tiny-obj.cfg yolov4-tiny.conv.29`
-
-For training Yolo based on other models ([DenseNet201-Yolo](https://github.com/AlexeyAB/darknet/blob/master/build/darknet/x64/densenet201_yolo.cfg) or [ResNet50-Yolo](https://github.com/AlexeyAB/darknet/blob/master/build/darknet/x64/resnet50_yolo.cfg)), you can download and get pre-trained weights as showed in this file: https://github.com/AlexeyAB/darknet/blob/master/build/darknet/x64/partial.cmd
-If you made you custom model that isn't based on other models, then you can train it without pre-trained weights, then will be used random initial weights.
-
-## When should I stop training
-
-Usually sufficient 2000 iterations for each class(object), but not less than number of training images and not less than 6000 iterations in total. But for a more precise definition when you should stop training, use the following manual:
-
-1. During training, you will see varying indicators of error, and you should stop when no longer decreases **0.XXXXXXX avg**:
-
-  > Region Avg IOU: 0.798363, Class: 0.893232, Obj: 0.700808, No Obj: 0.004567, Avg Recall: 1.000000,  count: 8
-  > Region Avg IOU: 0.800677, Class: 0.892181, Obj: 0.701590, No Obj: 0.004574, Avg Recall: 1.000000,  count: 8
-  >
-  > **9002**: 0.211667, **0.60730 avg**, 0.001000 rate, 3.868000 seconds, 576128 images
-  > Loaded: 0.000000 seconds
-
-- **9002** - iteration number (number of batch)
-- **0.60730 avg** - average loss (error) - **the lower, the better**
-
-  When you see that average loss **0.xxxxxx avg** no longer decreases at many iterations then you should stop training. The final average loss can be from `0.05` (for a small model and easy dataset) to `3.0` (for a big model and a difficult dataset).
-  
-  Or if you train with flag `-map` then you will see mAP indicator `Last accuracy mAP@0.5 = 18.50%` in the console - this indicator is better than Loss, so train while mAP increases.
-
-2. Once training is stopped, you should take some of last `.weights`-files from `darknet\build\darknet\x64\backup` and choose the best of them:
-
-For example, you stopped training after 9000 iterations, but the best result can give one of previous weights (7000, 8000, 9000). It can happen due to over-fitting. **Over-fitting** - is case when you can detect objects on images from training-dataset, but can't detect objects on any others images. You should get weights from **Early Stopping Point**:
-
-![Over-fitting](https://hsto.org/files/5dc/7ae/7fa/5dc7ae7fad9d4e3eb3a484c58bfc1ff5.png)
-
-To get weights from Early Stopping Point:
-
-  2.1. At first, in your file `obj.data` you must specify the path to the validation dataset `valid = valid.txt` (format of `valid.txt` as in `train.txt`), and if you haven't validation images, just copy `data\train.txt` to `data\valid.txt`.
-
-  2.2 If training is stopped after 9000 iterations, to validate some of previous weights use this commands:
-
-(If you use another GitHub repository, then use `darknet.exe detector recall`... instead of `darknet.exe detector map`...)
-
-- `darknet.exe detector map data/obj.data yolo-obj.cfg backup\yolo-obj_7000.weights`
-- `darknet.exe detector map data/obj.data yolo-obj.cfg backup\yolo-obj_8000.weights`
-- `darknet.exe detector map data/obj.data yolo-obj.cfg backup\yolo-obj_9000.weights`
-
-And compare last output lines for each weights (7000, 8000, 9000):
-
-Choose weights-file **with the highest mAP (mean average precision)** or IoU (intersect over union)
-
-For example, **bigger mAP** gives weights `yolo-obj_8000.weights` - then **use this weights for detection**.
-
-Or just train with `-map` flag:
-
-`darknet.exe detector train data/obj.data yolo-obj.cfg yolov4.conv.137 -map`
-
-So you will see mAP-chart (red-line) in the Loss-chart Window. mAP will be calculated for each 4 Epochs using `valid=valid.txt` file that is specified in `obj.data` file (`1 Epoch = images_in_train_txt / batch` iterations)
-
-(to change the max x-axis value - change [`max_batches=`](https://github.com/AlexeyAB/darknet/blob/0039fd26786ab5f71d5af725fc18b3f521e7acfd/cfg/yolov3.cfg#L20) parameter to `2000*classes`, f.e. `max_batches=6000` for 3 classes)
-
-![loss_chart_map_chart](https://hsto.org/webt/yd/vl/ag/ydvlagutof2zcnjodstgroen8ac.jpeg)
-
-Example of custom object detection: `darknet.exe detector test data/obj.data yolo-obj.cfg yolo-obj_8000.weights`
-
-- **IoU** (intersect over union) - average intersect over union of objects and detections for a certain threshold = 0.24
-
-- **mAP** (mean average precision) - mean value of `average precisions` for each class, where `average precision` is average value of 11 points on PR-curve for each possible threshold (each probability of detection) for the same class (Precision-Recall in terms of PascalVOC, where Precision=TP/(TP+FP) and Recall=TP/(TP+FN) ), page-11: http://homepages.inf.ed.ac.uk/ckiw/postscript/ijcv_voc09.pdf
-
-**mAP** is default metric of precision in the PascalVOC competition, **this is the same as AP50** metric in the MS COCO competition.
-In terms of Wiki, indicators Precision and Recall have a slightly different meaning than in the PascalVOC competition, but **IoU always has the same meaning**.
-
-![precision_recall_iou](https://hsto.org/files/ca8/866/d76/ca8866d76fb840228940dbf442a7f06a.jpg)
-
-### Custom object detection
-
-Example of custom object detection: `darknet.exe detector test data/obj.data yolo-obj.cfg yolo-obj_8000.weights`
-
-| ![Yolo_v2_training](https://hsto.org/files/d12/1e7/515/d121e7515f6a4eb694913f10de5f2b61.jpg) | ![Yolo_v2_training](https://hsto.org/files/727/c7e/5e9/727c7e5e99bf4d4aa34027bb6a5e4bab.jpg) |
-|---|---|
-
-## How to improve object detection
-
-1. Before training:
-
-- set flag `random=1` in your `.cfg`-file - it will increase precision by training Yolo for different resolutions: [link](https://github.com/AlexeyAB/darknet/blob/0039fd26786ab5f71d5af725fc18b3f521e7acfd/cfg/yolov3.cfg#L788)
-
-- increase network resolution in your `.cfg`-file (`height=608`, `width=608` or any value multiple of 32) - it will increase precision
-
-- check that each object that you want to detect is mandatory labeled in your dataset - no one object in your data set should not be without label. In the most training issues - there are wrong labels in your dataset (got labels by using some conversion script, marked with a third-party tool, ...). Always check your dataset by using: https://github.com/AlexeyAB/Yolo_mark
-
-- my Loss is very high and mAP is very low, is training wrong? Run training with `-show_imgs` flag at the end of training command, do you see correct bounded boxes of objects (in windows or in files `aug_...jpg`)? If no - your training dataset is wrong.
-
-- for each object which you want to detect - there must be at least 1 similar object in the Training dataset with about the same: shape, side of object, relative size, angle of rotation, tilt, illumination. So desirable that your training dataset include images with objects at different: scales, rotations, lightings, from different sides, on different backgrounds - you should preferably have 2000 different images for each class or more, and you should train `2000*classes` iterations or more
-
-- desirable that your training dataset include images with non-labeled objects that you do not want to detect - negative samples without bounded box (empty `.txt` files) - use as many images of negative samples as there are images with objects
-
-- What is the best way to mark objects: label only the visible part of the object, or label the visible and overlapped part of the object, or label a little more than the entire object (with a little gap)? Mark as you like - how would you like it to be detected.
-
-- for training with a large number of objects in each image, add the parameter `max=200` or higher value in the last `[yolo]`-layer or `[region]`-layer in your cfg-file (the global maximum number of objects that can be detected by YoloV3 is `0,0615234375*(width*height)` where are width and height are parameters from `[net]` section in cfg-file)
-  
-- for training for small objects (smaller than 16x16 after the image is resized to 416x416) - set `layers = 23` instead of https://github.com/AlexeyAB/darknet/blob/6f718c257815a984253346bba8fb7aa756c55090/cfg/yolov4.cfg#L895
-  - set `stride=4` instead of https://github.com/AlexeyAB/darknet/blob/6f718c257815a984253346bba8fb7aa756c55090/cfg/yolov4.cfg#L892
-  - set `stride=4` instead of https://github.com/AlexeyAB/darknet/blob/6f718c257815a984253346bba8fb7aa756c55090/cfg/yolov4.cfg#L989
-  
-- for training for both small and large objects use modified models:
-  - Full-model: 5 yolo layers: https://raw.githubusercontent.com/AlexeyAB/darknet/master/cfg/yolov3_5l.cfg
-  - Tiny-model: 3 yolo layers: https://raw.githubusercontent.com/AlexeyAB/darknet/master/cfg/yolov4-tiny_3l.cfg
-  - YOLOv4: 3 yolo layers: https://raw.githubusercontent.com/AlexeyAB/darknet/master/cfg/yolov4-custom.cfg
-  
-- If you train the model to distinguish Left and Right objects as separate classes (left/right hand, left/right-turn on road signs, ...) then for disabling flip data augmentation - add `flip=0` here: https://github.com/AlexeyAB/darknet/blob/3d2d0a7c98dbc8923d9ff705b81ff4f7940ea6ff/cfg/yolov3.cfg#L17
-  
-- General rule - your training dataset should include such a set of relative sizes of objects that you want to detect:
-  - `train_network_width * train_obj_width / train_image_width ~= detection_network_width * detection_obj_width / detection_image_width`
-  - `train_network_height * train_obj_height / train_image_height ~= detection_network_height * detection_obj_height / detection_image_height`
-
-  I.e. for each object from Test dataset there must be at least 1 object in the Training dataset with the same class_id and about the same relative size:
-
-  `object width in percent from Training dataset` ~= `object width in percent from Test dataset`
-
-  That is, if only objects that occupied 80-90% of the image were present in the training set, then the trained network will not be able to detect objects that occupy 1-10% of the image.
-
-- to speedup training (with decreasing detection accuracy) set param `stopbackward=1` for layer-136 in cfg-file
-
-- each: `model of object, side, illumination, scale, each 30 grad` of the turn and inclination angles - these are *different objects* from an internal perspective of the neural network. So the more *different objects* you want to detect, the more complex network model should be used.
-
-- to make the detected bounded boxes more accurate, you can add 3 parameters `ignore_thresh = .9 iou_normalizer=0.5 iou_loss=giou` to each `[yolo]` layer and train, it will increase mAP@0.9, but decrease mAP@0.5.
-
-- Only if you are an **expert** in neural detection networks - recalculate anchors for your dataset for `width` and `height` from cfg-file:
-`darknet.exe detector calc_anchors data/obj.data -num_of_clusters 9 -width 416 -height 416`
-then set the same 9 `anchors` in each of 3 `[yolo]`-layers in your cfg-file. But you should change indexes of anchors `masks=` for each [yolo]-layer, so for YOLOv4 the 1st-[yolo]-layer has anchors smaller than 30x30, 2nd smaller than 60x60, 3rd remaining, and vice versa for YOLOv3. Also you should change the `filters=(classes + 5)*<number of mask>` before each [yolo]-layer. If many of the calculated anchors do not fit under the appropriate layers - then just try using all the default anchors.
-
-2. After training - for detection:
-
-- Increase network-resolution by set in your `.cfg`-file (`height=608` and `width=608`) or (`height=832` and `width=832`) or (any value multiple of 32) - this increases the precision and makes it possible to detect small objects: [link](https://github.com/AlexeyAB/darknet/blob/0039fd26786ab5f71d5af725fc18b3f521e7acfd/cfg/yolov3.cfg#L8-L9)
-
-- it is not necessary to train the network again, just use `.weights`-file already trained for 416x416 resolution
-
-- to get even greater accuracy you should train with higher resolution 608x608 or 832x832, note: if error `Out of memory` occurs then in `.cfg`-file you should increase `subdivisions=16`, 32 or 64: [link](https://github.com/AlexeyAB/darknet/blob/0039fd26786ab5f71d5af725fc18b3f521e7acfd/cfg/yolov3.cfg#L4)
-
-## How to mark bounded boxes of objects and create annotation files
-
-Here you can find repository with GUI-software for marking bounded boxes of objects and generating annotation files for Yolo v2 - v4: https://github.com/AlexeyAB/Yolo_mark
-
-With example of: `train.txt`, `obj.names`, `obj.data`, `yolo-obj.cfg`, `air`1-6`.txt`, `bird`1-4`.txt` for 2 classes of objects (air, bird) and `train_obj.cmd` with example how to train this image-set with Yolo v2 - v4
-
-Different tools for marking objects in images:
-
-1. in C++: https://github.com/AlexeyAB/Yolo_mark
-2. in Python: https://github.com/tzutalin/labelImg
-3. in Python: https://github.com/Cartucho/OpenLabeling
-4. in C++: https://www.ccoderun.ca/darkmark/
-5. in JavaScript: https://github.com/opencv/cvat
-6. in C++: https://github.com/jveitchmichaelis/deeplabel
-7. in C#: https://github.com/BMW-InnovationLab/BMW-Labeltool-Lite
-8. DL-Annotator for Windows ($30): [url](https://www.microsoft.com/en-us/p/dlannotator/9nsx79m7t8fn?activetab=pivot:overviewtab)
-9. v7labs - the greatest cloud labeling tool ($1.5 per hour): https://www.v7labs.com/
-
-## How to use Yolo as DLL and SO libraries
-
-- on Linux
-  - using `build.sh` or
-  - build `darknet` using `cmake` or
-  - set `LIBSO=1` in the `Makefile` and do `make`
-- on Windows
-  - using `build.ps1` or
-  - build `darknet` using `cmake` or
-  - compile `build\darknet\yolo_cpp_dll.sln` solution or `build\darknet\yolo_cpp_dll_no_gpu.sln` solution
-
-There are 2 APIs:
-
-- C API: https://github.com/AlexeyAB/darknet/blob/master/include/darknet.h
-  - Python examples using the C API:
-    - https://github.com/AlexeyAB/darknet/blob/master/darknet.py
-    - https://github.com/AlexeyAB/darknet/blob/master/darknet_video.py
-
-- C++ API: https://github.com/AlexeyAB/darknet/blob/master/include/yolo_v2_class.hpp
-  - C++ example that uses C++ API: https://github.com/AlexeyAB/darknet/blob/master/src/yolo_console_dll.cpp
-
-----
-
-1. To compile Yolo as C++ DLL-file `yolo_cpp_dll.dll` - open the solution `build\darknet\yolo_cpp_dll.sln`, set **x64** and **Release**, and do the: Build -> Build yolo_cpp_dll
-    - You should have installed **CUDA 10.2**
-    - To use cuDNN do: (right click on project) -> properties -> C/C++ -> Preprocessor -> Preprocessor Definitions, and add at the beginning of line: `CUDNN;`
-
-2. To use Yolo as DLL-file in your C++ console application - open the solution `build\darknet\yolo_console_dll.sln`, set **x64** and **Release**, and do the: Build -> Build yolo_console_dll
-
-    - you can run your console application from Windows Explorer `build\darknet\x64\yolo_console_dll.exe`
-    **use this command**: `yolo_console_dll.exe data/coco.names yolov4.cfg yolov4.weights test.mp4`
-
-    - after launching your console application and entering the image file name - you will see info for each object:
-    `<obj_id> <left_x> <top_y> <width> <height> <probability>`
-    - to use simple OpenCV-GUI you should uncomment line `//#define OPENCV` in `yolo_console_dll.cpp`-file: [link](https://github.com/AlexeyAB/darknet/blob/a6cbaeecde40f91ddc3ea09aa26a03ab5bbf8ba8/src/yolo_console_dll.cpp#L5)
-    - you can see source code of simple example for detection on the video file: [link](https://github.com/AlexeyAB/darknet/blob/ab1c5f9e57b4175f29a6ef39e7e68987d3e98704/src/yolo_console_dll.cpp#L75)
-
-`yolo_cpp_dll.dll`-API: [link](https://github.com/AlexeyAB/darknet/blob/master/src/yolo_v2_class.hpp#L42)
-
-```cpp
-struct bbox_t {
-    unsigned int x, y, w, h;    // (x,y) - top-left corner, (w, h) - width & height of bounded box
-    float prob;                    // confidence - probability that the object was found correctly
-    unsigned int obj_id;        // class of object - from range [0, classes-1]
-    unsigned int track_id;        // tracking id for video (0 - untracked, 1 - inf - tracked object)
-    unsigned int frames_counter;// counter of frames on which the object was detected
-};
-
-class Detector {
-public:
-        Detector(std::string cfg_filename, std::string weight_filename, int gpu_id = 0);
-        ~Detector();
-
-        std::vector<bbox_t> detect(std::string image_filename, float thresh = 0.2, bool use_mean = false);
-        std::vector<bbox_t> detect(image_t img, float thresh = 0.2, bool use_mean = false);
-        static image_t load_image(std::string image_filename);
-        static void free_image(image_t m);
-
-#ifdef OPENCV
-        std::vector<bbox_t> detect(cv::Mat mat, float thresh = 0.2, bool use_mean = false);
-        std::shared_ptr<image_t> mat_to_image_resize(cv::Mat mat) const;
-#endif
-};
+```python
+!python convert_annotations.py
 ```
 
-## Citation
+##### 3. Delete old labels
+Delete 'label' folder in  
 
-```
-@misc{bochkovskiy2020yolov4,
-      title={YOLOv4: Optimal Speed and Accuracy of Object Detection}, 
-      author={Alexey Bochkovskiy and Chien-Yao Wang and Hong-Yuan Mark Liao},
-      year={2020},
-      eprint={2004.10934},
-      archivePrefix={arXiv},
-      primaryClass={cs.CV}
-}
+*   OID/Dataset/train 
+*   OID/Dataset/validation
+
+
+#### 3. Zip & Upload to Google Drive & mount drive
+
+*   Train set as obj.zip
+*   Validation set as test.zip
+
+
+
+
+```python
+from google.colab import drive
+drive.mount('/content/drive')
 ```
 
+    Mounted at /content/drive
+    
+
+#### 4. Unzip and move to darknet/data
+
+# EDA
+
+*   Create a DataFrame from annotations to visualize our objects.
+*   You can find the code in data/eda.ipynb
+*   I did it on local machine and upload it to data/
+
+
+
+```python
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
 ```
-@InProceedings{Wang_2021_CVPR,
-    author    = {Wang, Chien-Yao and Bochkovskiy, Alexey and Liao, Hong-Yuan Mark},
-    title     = {{Scaled-YOLOv4}: Scaling Cross Stage Partial Network},
-    booktitle = {Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR)},
-    month     = {June},
-    year      = {2021},
-    pages     = {13029-13038}
-}
+
+
+```python
+df = pd.read_csv('./data/eda.csv')
+```
+
+## Distributions
+
+
+```python
+plt.figure(figsize=(13,8))
+bins=40
+
+plt.subplot(2,2,1)
+sns.histplot(data=df, x='x', bins=bins)
+
+plt.subplot(2,2,2)
+sns.histplot(data=df, x='y', bins=bins)
+
+plt.subplot(2,2,3)
+sns.histplot(data=df, x='width', bins=bins)
+
+plt.subplot(2,2,4)
+sns.histplot(data=df, x='height', bins=bins)
+```
+
+
+
+
+    <matplotlib.axes._subplots.AxesSubplot at 0x7fec12bde0d0>
+
+
+
+
+    
+![png](darknet_files/darknet_27_1.png)
+    
+
+
+They make sense for number plate images
+
+
+
+*   x values are well distributed, which means the cameraman did a good job :D
+*   y values are well distributed as well, but, most of the objects are on top of our images.
+*   both height and width make sense, because our object is licence plate and they all have almost similiar sizes.
+
+
+
+
+
+
+
+## x vs y | height vs width
+
+
+```python
+plt.figure(figsize=(13,5))
+
+plt.subplot(1,2,1)
+sns.scatterplot(data=df, x='x', y='y', alpha=.4)
+
+plt.subplot(1,2,2)
+sns.scatterplot(data=df, x='width', y='height', alpha=.4)
+```
+
+
+
+
+    <matplotlib.axes._subplots.AxesSubplot at 0x7fec1259cb10>
+
+
+
+
+    
+![png](darknet_files/darknet_30_1.png)
+    
+
+
+
+1.   As mentioned above, there is a lack in our dataset in buttom-half part of xy plane.
+2.   As we can see, the center of our x axis is dense, it's beacuse humans put the object in the center of the camera.
+
+
+
+# Darknet Setup
+
+
+```python
+# clone repo
+!git clone https://github.com/AlexeyAB/darknet
+```
+
+## GPU
+
+
+```python
+# change makefile to have GPU and OPENCV enabled
+%cd darknet
+!sed -i 's/OPENCV=0/OPENCV=1/' Makefile
+!sed -i 's/GPU=0/GPU=1/' Makefile
+!sed -i 's/CUDNN=0/CUDNN=1/' Makefile
+!sed -i 's/CUDNN_HALF=0/CUDNN_HALF=1/' Makefile
+```
+
+
+```python
+# verify CUDA
+!/usr/local/cuda/bin/nvcc --version
+```
+
+
+```python
+# make darknet
+!make
+```
+
+## Weights
+
+
+```python
+# pre-trained weights on MS COCO dataset
+!wget https://github.com/AlexeyAB/darknet/releases/download/darknet_yolo_v3_optimal/yolov4.weights
+```
+
+
+```python
+# pre-trained weights for the convolutional layers
+!wget https://github.com/AlexeyAB/darknet/releases/download/darknet_yolo_v3_optimal/yolov4.conv.137
+```
+
+## Generate train.txt and test.txt
+* These files are not in official repo, but you can find them in my repository.
+
+
+```python
+!python generate_train.py
+!python generate_test.py
+```
+
+## Configs
+Wee need to change/create these files: (I configured them for our object, we just need to put them in right place)
+
+
+*   data/obj.names
+*   data/obj.data
+*   cfg/yolov4-custom.cgf
+*   cfg/yolov4-obj.cfg
+
+
+# Training
+
+## Configurations
+https://github.com/AlexeyAB/darknet#how-to-train-to-detect-your-custom-objects  
+
+
+*   1 Epoch = images_in_train_txt / batch = 2000 / 32 = 62.5
+
+
+
+## Train
+
+
+```python
+# Access Denied Error
+!chmod +x ./darknet
+```
+
+
+```python
+# set custom cfg to train mode 
+%cd cfg
+!sed -i 's/batch=1/batch=64/' yolov4-obj.cfg
+!sed -i 's/subdivisions=1/subdivisions=16/' yolov4-obj.cfg
+%cd ..
+```
+
+
+```python
+!./darknet detector train ./data/obj.data ./cfg/yolov4-obj.cfg yolov4.conv.137 -dont_show -map
+```
+
+    /bin/bash: ./darknet: No such file or directory
+    
+
+## Restart
+I intrupted the training, we can restart training from our last weight.  
+(every 100 iterations our weights are saved to backup folder in yolov4-obj_last.weights) (~every 30 minutes)  
+(every 1000 iterations our weight are saved to backup folder in yolo-obj_xxxx.weights)
+
+
+```python
+!./darknet detector train ./data/obj.data ./cfg/yolov4-obj.cfg ./backup/yolov4-obj_last.weights -dont_show -map
+```
+
+    /bin/bash: ./darknet: No such file or directory
+    
+
+# Sanity Check
+
+#### Setup
+
+
+```python
+# set custom cfg to test mode 
+%cd cfg
+!sed -i 's/batch=64/batch=1/' yolov4-obj.cfg
+!sed -i 's/subdivisions=16/subdivisions=1/' yolov4-obj.cfg
+%cd ..
+```
+
+    /content/drive/MyDrive/darknet/cfg
+    /content/drive/My Drive/darknet
+    
+
+
+```python
+def imShow(path):
+  import cv2
+  import matplotlib.pyplot as plt
+  %matplotlib inline
+
+  image = cv2.imread(path)
+  height, width = image.shape[:2]
+  resized_image = cv2.resize(image,(3*width, 3*height), interpolation = cv2.INTER_CUBIC)
+
+  fig = plt.gcf()
+  fig.set_size_inches(18, 10)
+  plt.axis("off")
+  plt.imshow(cv2.cvtColor(resized_image, cv2.COLOR_BGR2RGB))
+  plt.show()
+```
+
+#### Sanity Check on COCO
+
+
+```python
+!./darknet detector test cfg/coco.data cfg/yolov4.cfg yolov4.weights data/person.jpg
+```
+
+     CUDA-version: 11010 (11020), cuDNN: 7.6.5, CUDNN_HALF=1, GPU count: 1  
+     CUDNN_HALF=1 
+     OpenCV version: 3.2.0
+     0 : compute_capability = 370, cudnn_half = 0, GPU: Tesla K80 
+    net.optimized_memory = 0 
+    mini_batch = 1, batch = 8, time_steps = 1, train = 0 
+       layer   filters  size/strd(dil)      input                output
+       0 Create CUDA-stream - 0 
+     Create cudnn-handle 0 
+    conv     32       3 x 3/ 1    608 x 608 x   3 ->  608 x 608 x  32 0.639 BF
+       1 conv     64       3 x 3/ 2    608 x 608 x  32 ->  304 x 304 x  64 3.407 BF
+       2 conv     64       1 x 1/ 1    304 x 304 x  64 ->  304 x 304 x  64 0.757 BF
+       3 route  1 		                           ->  304 x 304 x  64 
+       4 conv     64       1 x 1/ 1    304 x 304 x  64 ->  304 x 304 x  64 0.757 BF
+       5 conv     32       1 x 1/ 1    304 x 304 x  64 ->  304 x 304 x  32 0.379 BF
+       6 conv     64       3 x 3/ 1    304 x 304 x  32 ->  304 x 304 x  64 3.407 BF
+       7 Shortcut Layer: 4,  wt = 0, wn = 0, outputs: 304 x 304 x  64 0.006 BF
+       8 conv     64       1 x 1/ 1    304 x 304 x  64 ->  304 x 304 x  64 0.757 BF
+       9 route  8 2 	                           ->  304 x 304 x 128 
+      10 conv     64       1 x 1/ 1    304 x 304 x 128 ->  304 x 304 x  64 1.514 BF
+      11 conv    128       3 x 3/ 2    304 x 304 x  64 ->  152 x 152 x 128 3.407 BF
+      12 conv     64       1 x 1/ 1    152 x 152 x 128 ->  152 x 152 x  64 0.379 BF
+      13 route  11 		                           ->  152 x 152 x 128 
+      14 conv     64       1 x 1/ 1    152 x 152 x 128 ->  152 x 152 x  64 0.379 BF
+      15 conv     64       1 x 1/ 1    152 x 152 x  64 ->  152 x 152 x  64 0.189 BF
+      16 conv     64       3 x 3/ 1    152 x 152 x  64 ->  152 x 152 x  64 1.703 BF
+      17 Shortcut Layer: 14,  wt = 0, wn = 0, outputs: 152 x 152 x  64 0.001 BF
+      18 conv     64       1 x 1/ 1    152 x 152 x  64 ->  152 x 152 x  64 0.189 BF
+      19 conv     64       3 x 3/ 1    152 x 152 x  64 ->  152 x 152 x  64 1.703 BF
+      20 Shortcut Layer: 17,  wt = 0, wn = 0, outputs: 152 x 152 x  64 0.001 BF
+      21 conv     64       1 x 1/ 1    152 x 152 x  64 ->  152 x 152 x  64 0.189 BF
+      22 route  21 12 	                           ->  152 x 152 x 128 
+      23 conv    128       1 x 1/ 1    152 x 152 x 128 ->  152 x 152 x 128 0.757 BF
+      24 conv    256       3 x 3/ 2    152 x 152 x 128 ->   76 x  76 x 256 3.407 BF
+      25 conv    128       1 x 1/ 1     76 x  76 x 256 ->   76 x  76 x 128 0.379 BF
+      26 route  24 		                           ->   76 x  76 x 256 
+      27 conv    128       1 x 1/ 1     76 x  76 x 256 ->   76 x  76 x 128 0.379 BF
+      28 conv    128       1 x 1/ 1     76 x  76 x 128 ->   76 x  76 x 128 0.189 BF
+      29 conv    128       3 x 3/ 1     76 x  76 x 128 ->   76 x  76 x 128 1.703 BF
+      30 Shortcut Layer: 27,  wt = 0, wn = 0, outputs:  76 x  76 x 128 0.001 BF
+      31 conv    128       1 x 1/ 1     76 x  76 x 128 ->   76 x  76 x 128 0.189 BF
+      32 conv    128       3 x 3/ 1     76 x  76 x 128 ->   76 x  76 x 128 1.703 BF
+      33 Shortcut Layer: 30,  wt = 0, wn = 0, outputs:  76 x  76 x 128 0.001 BF
+      34 conv    128       1 x 1/ 1     76 x  76 x 128 ->   76 x  76 x 128 0.189 BF
+      35 conv    128       3 x 3/ 1     76 x  76 x 128 ->   76 x  76 x 128 1.703 BF
+      36 Shortcut Layer: 33,  wt = 0, wn = 0, outputs:  76 x  76 x 128 0.001 BF
+      37 conv    128       1 x 1/ 1     76 x  76 x 128 ->   76 x  76 x 128 0.189 BF
+      38 conv    128       3 x 3/ 1     76 x  76 x 128 ->   76 x  76 x 128 1.703 BF
+      39 Shortcut Layer: 36,  wt = 0, wn = 0, outputs:  76 x  76 x 128 0.001 BF
+      40 conv    128       1 x 1/ 1     76 x  76 x 128 ->   76 x  76 x 128 0.189 BF
+      41 conv    128       3 x 3/ 1     76 x  76 x 128 ->   76 x  76 x 128 1.703 BF
+      42 Shortcut Layer: 39,  wt = 0, wn = 0, outputs:  76 x  76 x 128 0.001 BF
+      43 conv    128       1 x 1/ 1     76 x  76 x 128 ->   76 x  76 x 128 0.189 BF
+      44 conv    128       3 x 3/ 1     76 x  76 x 128 ->   76 x  76 x 128 1.703 BF
+      45 Shortcut Layer: 42,  wt = 0, wn = 0, outputs:  76 x  76 x 128 0.001 BF
+      46 conv    128       1 x 1/ 1     76 x  76 x 128 ->   76 x  76 x 128 0.189 BF
+      47 conv    128       3 x 3/ 1     76 x  76 x 128 ->   76 x  76 x 128 1.703 BF
+      48 Shortcut Layer: 45,  wt = 0, wn = 0, outputs:  76 x  76 x 128 0.001 BF
+      49 conv    128       1 x 1/ 1     76 x  76 x 128 ->   76 x  76 x 128 0.189 BF
+      50 conv    128       3 x 3/ 1     76 x  76 x 128 ->   76 x  76 x 128 1.703 BF
+      51 Shortcut Layer: 48,  wt = 0, wn = 0, outputs:  76 x  76 x 128 0.001 BF
+      52 conv    128       1 x 1/ 1     76 x  76 x 128 ->   76 x  76 x 128 0.189 BF
+      53 route  52 25 	                           ->   76 x  76 x 256 
+      54 conv    256       1 x 1/ 1     76 x  76 x 256 ->   76 x  76 x 256 0.757 BF
+      55 conv    512       3 x 3/ 2     76 x  76 x 256 ->   38 x  38 x 512 3.407 BF
+      56 conv    256       1 x 1/ 1     38 x  38 x 512 ->   38 x  38 x 256 0.379 BF
+      57 route  55 		                           ->   38 x  38 x 512 
+      58 conv    256       1 x 1/ 1     38 x  38 x 512 ->   38 x  38 x 256 0.379 BF
+      59 conv    256       1 x 1/ 1     38 x  38 x 256 ->   38 x  38 x 256 0.189 BF
+      60 conv    256       3 x 3/ 1     38 x  38 x 256 ->   38 x  38 x 256 1.703 BF
+      61 Shortcut Layer: 58,  wt = 0, wn = 0, outputs:  38 x  38 x 256 0.000 BF
+      62 conv    256       1 x 1/ 1     38 x  38 x 256 ->   38 x  38 x 256 0.189 BF
+      63 conv    256       3 x 3/ 1     38 x  38 x 256 ->   38 x  38 x 256 1.703 BF
+      64 Shortcut Layer: 61,  wt = 0, wn = 0, outputs:  38 x  38 x 256 0.000 BF
+      65 conv    256       1 x 1/ 1     38 x  38 x 256 ->   38 x  38 x 256 0.189 BF
+      66 conv    256       3 x 3/ 1     38 x  38 x 256 ->   38 x  38 x 256 1.703 BF
+      67 Shortcut Layer: 64,  wt = 0, wn = 0, outputs:  38 x  38 x 256 0.000 BF
+      68 conv    256       1 x 1/ 1     38 x  38 x 256 ->   38 x  38 x 256 0.189 BF
+      69 conv    256       3 x 3/ 1     38 x  38 x 256 ->   38 x  38 x 256 1.703 BF
+      70 Shortcut Layer: 67,  wt = 0, wn = 0, outputs:  38 x  38 x 256 0.000 BF
+      71 conv    256       1 x 1/ 1     38 x  38 x 256 ->   38 x  38 x 256 0.189 BF
+      72 conv    256       3 x 3/ 1     38 x  38 x 256 ->   38 x  38 x 256 1.703 BF
+      73 Shortcut Layer: 70,  wt = 0, wn = 0, outputs:  38 x  38 x 256 0.000 BF
+      74 conv    256       1 x 1/ 1     38 x  38 x 256 ->   38 x  38 x 256 0.189 BF
+      75 conv    256       3 x 3/ 1     38 x  38 x 256 ->   38 x  38 x 256 1.703 BF
+      76 Shortcut Layer: 73,  wt = 0, wn = 0, outputs:  38 x  38 x 256 0.000 BF
+      77 conv    256       1 x 1/ 1     38 x  38 x 256 ->   38 x  38 x 256 0.189 BF
+      78 conv    256       3 x 3/ 1     38 x  38 x 256 ->   38 x  38 x 256 1.703 BF
+      79 Shortcut Layer: 76,  wt = 0, wn = 0, outputs:  38 x  38 x 256 0.000 BF
+      80 conv    256       1 x 1/ 1     38 x  38 x 256 ->   38 x  38 x 256 0.189 BF
+      81 conv    256       3 x 3/ 1     38 x  38 x 256 ->   38 x  38 x 256 1.703 BF
+      82 Shortcut Layer: 79,  wt = 0, wn = 0, outputs:  38 x  38 x 256 0.000 BF
+      83 conv    256       1 x 1/ 1     38 x  38 x 256 ->   38 x  38 x 256 0.189 BF
+      84 route  83 56 	                           ->   38 x  38 x 512 
+      85 conv    512       1 x 1/ 1     38 x  38 x 512 ->   38 x  38 x 512 0.757 BF
+      86 conv   1024       3 x 3/ 2     38 x  38 x 512 ->   19 x  19 x1024 3.407 BF
+      87 conv    512       1 x 1/ 1     19 x  19 x1024 ->   19 x  19 x 512 0.379 BF
+      88 route  86 		                           ->   19 x  19 x1024 
+      89 conv    512       1 x 1/ 1     19 x  19 x1024 ->   19 x  19 x 512 0.379 BF
+      90 conv    512       1 x 1/ 1     19 x  19 x 512 ->   19 x  19 x 512 0.189 BF
+      91 conv    512       3 x 3/ 1     19 x  19 x 512 ->   19 x  19 x 512 1.703 BF
+      92 Shortcut Layer: 89,  wt = 0, wn = 0, outputs:  19 x  19 x 512 0.000 BF
+      93 conv    512       1 x 1/ 1     19 x  19 x 512 ->   19 x  19 x 512 0.189 BF
+      94 conv    512       3 x 3/ 1     19 x  19 x 512 ->   19 x  19 x 512 1.703 BF
+      95 Shortcut Layer: 92,  wt = 0, wn = 0, outputs:  19 x  19 x 512 0.000 BF
+      96 conv    512       1 x 1/ 1     19 x  19 x 512 ->   19 x  19 x 512 0.189 BF
+      97 conv    512       3 x 3/ 1     19 x  19 x 512 ->   19 x  19 x 512 1.703 BF
+      98 Shortcut Layer: 95,  wt = 0, wn = 0, outputs:  19 x  19 x 512 0.000 BF
+      99 conv    512       1 x 1/ 1     19 x  19 x 512 ->   19 x  19 x 512 0.189 BF
+     100 conv    512       3 x 3/ 1     19 x  19 x 512 ->   19 x  19 x 512 1.703 BF
+     101 Shortcut Layer: 98,  wt = 0, wn = 0, outputs:  19 x  19 x 512 0.000 BF
+     102 conv    512       1 x 1/ 1     19 x  19 x 512 ->   19 x  19 x 512 0.189 BF
+     103 route  102 87 	                           ->   19 x  19 x1024 
+     104 conv   1024       1 x 1/ 1     19 x  19 x1024 ->   19 x  19 x1024 0.757 BF
+     105 conv    512       1 x 1/ 1     19 x  19 x1024 ->   19 x  19 x 512 0.379 BF
+     106 conv   1024       3 x 3/ 1     19 x  19 x 512 ->   19 x  19 x1024 3.407 BF
+     107 conv    512       1 x 1/ 1     19 x  19 x1024 ->   19 x  19 x 512 0.379 BF
+     108 max                5x 5/ 1     19 x  19 x 512 ->   19 x  19 x 512 0.005 BF
+     109 route  107 		                           ->   19 x  19 x 512 
+     110 max                9x 9/ 1     19 x  19 x 512 ->   19 x  19 x 512 0.015 BF
+     111 route  107 		                           ->   19 x  19 x 512 
+     112 max               13x13/ 1     19 x  19 x 512 ->   19 x  19 x 512 0.031 BF
+     113 route  112 110 108 107 	                   ->   19 x  19 x2048 
+     114 conv    512       1 x 1/ 1     19 x  19 x2048 ->   19 x  19 x 512 0.757 BF
+     115 conv   1024       3 x 3/ 1     19 x  19 x 512 ->   19 x  19 x1024 3.407 BF
+     116 conv    512       1 x 1/ 1     19 x  19 x1024 ->   19 x  19 x 512 0.379 BF
+     117 conv    256       1 x 1/ 1     19 x  19 x 512 ->   19 x  19 x 256 0.095 BF
+     118 upsample                 2x    19 x  19 x 256 ->   38 x  38 x 256
+     119 route  85 		                           ->   38 x  38 x 512 
+     120 conv    256       1 x 1/ 1     38 x  38 x 512 ->   38 x  38 x 256 0.379 BF
+     121 route  120 118 	                           ->   38 x  38 x 512 
+     122 conv    256       1 x 1/ 1     38 x  38 x 512 ->   38 x  38 x 256 0.379 BF
+     123 conv    512       3 x 3/ 1     38 x  38 x 256 ->   38 x  38 x 512 3.407 BF
+     124 conv    256       1 x 1/ 1     38 x  38 x 512 ->   38 x  38 x 256 0.379 BF
+     125 conv    512       3 x 3/ 1     38 x  38 x 256 ->   38 x  38 x 512 3.407 BF
+     126 conv    256       1 x 1/ 1     38 x  38 x 512 ->   38 x  38 x 256 0.379 BF
+     127 conv    128       1 x 1/ 1     38 x  38 x 256 ->   38 x  38 x 128 0.095 BF
+     128 upsample                 2x    38 x  38 x 128 ->   76 x  76 x 128
+     129 route  54 		                           ->   76 x  76 x 256 
+     130 conv    128       1 x 1/ 1     76 x  76 x 256 ->   76 x  76 x 128 0.379 BF
+     131 route  130 128 	                           ->   76 x  76 x 256 
+     132 conv    128       1 x 1/ 1     76 x  76 x 256 ->   76 x  76 x 128 0.379 BF
+     133 conv    256       3 x 3/ 1     76 x  76 x 128 ->   76 x  76 x 256 3.407 BF
+     134 conv    128       1 x 1/ 1     76 x  76 x 256 ->   76 x  76 x 128 0.379 BF
+     135 conv    256       3 x 3/ 1     76 x  76 x 128 ->   76 x  76 x 256 3.407 BF
+     136 conv    128       1 x 1/ 1     76 x  76 x 256 ->   76 x  76 x 128 0.379 BF
+     137 conv    256       3 x 3/ 1     76 x  76 x 128 ->   76 x  76 x 256 3.407 BF
+     138 conv    255       1 x 1/ 1     76 x  76 x 256 ->   76 x  76 x 255 0.754 BF
+     139 yolo
+    [yolo] params: iou loss: ciou (4), iou_norm: 0.07, obj_norm: 1.00, cls_norm: 1.00, delta_norm: 1.00, scale_x_y: 1.20
+    nms_kind: greedynms (1), beta = 0.600000 
+     140 route  136 		                           ->   76 x  76 x 128 
+     141 conv    256       3 x 3/ 2     76 x  76 x 128 ->   38 x  38 x 256 0.852 BF
+     142 route  141 126 	                           ->   38 x  38 x 512 
+     143 conv    256       1 x 1/ 1     38 x  38 x 512 ->   38 x  38 x 256 0.379 BF
+     144 conv    512       3 x 3/ 1     38 x  38 x 256 ->   38 x  38 x 512 3.407 BF
+     145 conv    256       1 x 1/ 1     38 x  38 x 512 ->   38 x  38 x 256 0.379 BF
+     146 conv    512       3 x 3/ 1     38 x  38 x 256 ->   38 x  38 x 512 3.407 BF
+     147 conv    256       1 x 1/ 1     38 x  38 x 512 ->   38 x  38 x 256 0.379 BF
+     148 conv    512       3 x 3/ 1     38 x  38 x 256 ->   38 x  38 x 512 3.407 BF
+     149 conv    255       1 x 1/ 1     38 x  38 x 512 ->   38 x  38 x 255 0.377 BF
+     150 yolo
+    [yolo] params: iou loss: ciou (4), iou_norm: 0.07, obj_norm: 1.00, cls_norm: 1.00, delta_norm: 1.00, scale_x_y: 1.10
+    nms_kind: greedynms (1), beta = 0.600000 
+     151 route  147 		                           ->   38 x  38 x 256 
+     152 conv    512       3 x 3/ 2     38 x  38 x 256 ->   19 x  19 x 512 0.852 BF
+     153 route  152 116 	                           ->   19 x  19 x1024 
+     154 conv    512       1 x 1/ 1     19 x  19 x1024 ->   19 x  19 x 512 0.379 BF
+     155 conv   1024       3 x 3/ 1     19 x  19 x 512 ->   19 x  19 x1024 3.407 BF
+     156 conv    512       1 x 1/ 1     19 x  19 x1024 ->   19 x  19 x 512 0.379 BF
+     157 conv   1024       3 x 3/ 1     19 x  19 x 512 ->   19 x  19 x1024 3.407 BF
+     158 conv    512       1 x 1/ 1     19 x  19 x1024 ->   19 x  19 x 512 0.379 BF
+     159 conv   1024       3 x 3/ 1     19 x  19 x 512 ->   19 x  19 x1024 3.407 BF
+     160 conv    255       1 x 1/ 1     19 x  19 x1024 ->   19 x  19 x 255 0.189 BF
+     161 yolo
+    [yolo] params: iou loss: ciou (4), iou_norm: 0.07, obj_norm: 1.00, cls_norm: 1.00, delta_norm: 1.00, scale_x_y: 1.05
+    nms_kind: greedynms (1), beta = 0.600000 
+    Total BFLOPS 128.459 
+    avg_outputs = 1068395 
+     Allocate additional workspace_size = 6.65 MB 
+    Loading weights from yolov4.weights...
+     seen 64, trained: 32032 K-images (500 Kilo-batches_64) 
+    Done! Loaded 162 layers from weights-file 
+     Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    ./data/person.jpg: Predicted in 171.679000 milli-seconds.
+    dog: 99%
+    person: 100%
+    horse: 98%
+    Unable to init server: Could not connect: Connection refused
+    
+    (predictions:67848): Gtk-[1;33mWARNING[0m **: [34m08:33:32.848[0m: cannot open display: 
+    
+
+
+```python
+imShow('./predictions.jpg')
+```
+
+
+    
+![png](darknet_files/darknet_58_0.png)
+    
+
+
+#### Run on unseen data
+I used the kaggle dataset for this.
+
+
+```python
+!./darknet detector test ./data/obj.data ./cfg/yolov4-obj.cfg ./backup/yolov4-obj_last.weights ../Cars354.png -thresh 0.3
+```
+
+    CUDA status Error: file: ./src/dark_cuda.c : () : line: 39 : build time: Sep 20 2021 - 18:31:40 
+    
+     CUDA Error: no CUDA-capable device is detected
+    Darknet error location: ./src/dark_cuda.c, check_error, line #70
+    CUDA Error: no CUDA-capable device is detected: Bad file descriptor
+    
+
+
+```python
+imShow('./predictions.jpg')
+```
+
+
+    
+![png](darknet_files/darknet_61_0.png)
+    
+
+
+**To process a list of images data/train.txt and save results of detection to result.json file use**
+
+
+
+```python
+!./darknet detector test data/obj.data cfg/yolov4-obj.cfg backup/yolov4-obj_last.weights -ext_output -dont_show -out result.json < data/test.txt
+```
+
+     CUDA-version: 11010 (11020), cuDNN: 7.6.5, CUDNN_HALF=1, GPU count: 1  
+     CUDNN_HALF=1 
+     OpenCV version: 3.2.0
+     0 : compute_capability = 370, cudnn_half = 0, GPU: Tesla K80 
+    net.optimized_memory = 0 
+    mini_batch = 1, batch = 1, time_steps = 1, train = 0 
+       layer   filters  size/strd(dil)      input                output
+       0 Create CUDA-stream - 0 
+     Create cudnn-handle 0 
+    conv     32       3 x 3/ 1    416 x 416 x   3 ->  416 x 416 x  32 0.299 BF
+       1 conv     64       3 x 3/ 2    416 x 416 x  32 ->  208 x 208 x  64 1.595 BF
+       2 conv     64       1 x 1/ 1    208 x 208 x  64 ->  208 x 208 x  64 0.354 BF
+       3 route  1 		                           ->  208 x 208 x  64 
+       4 conv     64       1 x 1/ 1    208 x 208 x  64 ->  208 x 208 x  64 0.354 BF
+       5 conv     32       1 x 1/ 1    208 x 208 x  64 ->  208 x 208 x  32 0.177 BF
+       6 conv     64       3 x 3/ 1    208 x 208 x  32 ->  208 x 208 x  64 1.595 BF
+       7 Shortcut Layer: 4,  wt = 0, wn = 0, outputs: 208 x 208 x  64 0.003 BF
+       8 conv     64       1 x 1/ 1    208 x 208 x  64 ->  208 x 208 x  64 0.354 BF
+       9 route  8 2 	                           ->  208 x 208 x 128 
+      10 conv     64       1 x 1/ 1    208 x 208 x 128 ->  208 x 208 x  64 0.709 BF
+      11 conv    128       3 x 3/ 2    208 x 208 x  64 ->  104 x 104 x 128 1.595 BF
+      12 conv     64       1 x 1/ 1    104 x 104 x 128 ->  104 x 104 x  64 0.177 BF
+      13 route  11 		                           ->  104 x 104 x 128 
+      14 conv     64       1 x 1/ 1    104 x 104 x 128 ->  104 x 104 x  64 0.177 BF
+      15 conv     64       1 x 1/ 1    104 x 104 x  64 ->  104 x 104 x  64 0.089 BF
+      16 conv     64       3 x 3/ 1    104 x 104 x  64 ->  104 x 104 x  64 0.797 BF
+      17 Shortcut Layer: 14,  wt = 0, wn = 0, outputs: 104 x 104 x  64 0.001 BF
+      18 conv     64       1 x 1/ 1    104 x 104 x  64 ->  104 x 104 x  64 0.089 BF
+      19 conv     64       3 x 3/ 1    104 x 104 x  64 ->  104 x 104 x  64 0.797 BF
+      20 Shortcut Layer: 17,  wt = 0, wn = 0, outputs: 104 x 104 x  64 0.001 BF
+      21 conv     64       1 x 1/ 1    104 x 104 x  64 ->  104 x 104 x  64 0.089 BF
+      22 route  21 12 	                           ->  104 x 104 x 128 
+      23 conv    128       1 x 1/ 1    104 x 104 x 128 ->  104 x 104 x 128 0.354 BF
+      24 conv    256       3 x 3/ 2    104 x 104 x 128 ->   52 x  52 x 256 1.595 BF
+      25 conv    128       1 x 1/ 1     52 x  52 x 256 ->   52 x  52 x 128 0.177 BF
+      26 route  24 		                           ->   52 x  52 x 256 
+      27 conv    128       1 x 1/ 1     52 x  52 x 256 ->   52 x  52 x 128 0.177 BF
+      28 conv    128       1 x 1/ 1     52 x  52 x 128 ->   52 x  52 x 128 0.089 BF
+      29 conv    128       3 x 3/ 1     52 x  52 x 128 ->   52 x  52 x 128 0.797 BF
+      30 Shortcut Layer: 27,  wt = 0, wn = 0, outputs:  52 x  52 x 128 0.000 BF
+      31 conv    128       1 x 1/ 1     52 x  52 x 128 ->   52 x  52 x 128 0.089 BF
+      32 conv    128       3 x 3/ 1     52 x  52 x 128 ->   52 x  52 x 128 0.797 BF
+      33 Shortcut Layer: 30,  wt = 0, wn = 0, outputs:  52 x  52 x 128 0.000 BF
+      34 conv    128       1 x 1/ 1     52 x  52 x 128 ->   52 x  52 x 128 0.089 BF
+      35 conv    128       3 x 3/ 1     52 x  52 x 128 ->   52 x  52 x 128 0.797 BF
+      36 Shortcut Layer: 33,  wt = 0, wn = 0, outputs:  52 x  52 x 128 0.000 BF
+      37 conv    128       1 x 1/ 1     52 x  52 x 128 ->   52 x  52 x 128 0.089 BF
+      38 conv    128       3 x 3/ 1     52 x  52 x 128 ->   52 x  52 x 128 0.797 BF
+      39 Shortcut Layer: 36,  wt = 0, wn = 0, outputs:  52 x  52 x 128 0.000 BF
+      40 conv    128       1 x 1/ 1     52 x  52 x 128 ->   52 x  52 x 128 0.089 BF
+      41 conv    128       3 x 3/ 1     52 x  52 x 128 ->   52 x  52 x 128 0.797 BF
+      42 Shortcut Layer: 39,  wt = 0, wn = 0, outputs:  52 x  52 x 128 0.000 BF
+      43 conv    128       1 x 1/ 1     52 x  52 x 128 ->   52 x  52 x 128 0.089 BF
+      44 conv    128       3 x 3/ 1     52 x  52 x 128 ->   52 x  52 x 128 0.797 BF
+      45 Shortcut Layer: 42,  wt = 0, wn = 0, outputs:  52 x  52 x 128 0.000 BF
+      46 conv    128       1 x 1/ 1     52 x  52 x 128 ->   52 x  52 x 128 0.089 BF
+      47 conv    128       3 x 3/ 1     52 x  52 x 128 ->   52 x  52 x 128 0.797 BF
+      48 Shortcut Layer: 45,  wt = 0, wn = 0, outputs:  52 x  52 x 128 0.000 BF
+      49 conv    128       1 x 1/ 1     52 x  52 x 128 ->   52 x  52 x 128 0.089 BF
+      50 conv    128       3 x 3/ 1     52 x  52 x 128 ->   52 x  52 x 128 0.797 BF
+      51 Shortcut Layer: 48,  wt = 0, wn = 0, outputs:  52 x  52 x 128 0.000 BF
+      52 conv    128       1 x 1/ 1     52 x  52 x 128 ->   52 x  52 x 128 0.089 BF
+      53 route  52 25 	                           ->   52 x  52 x 256 
+      54 conv    256       1 x 1/ 1     52 x  52 x 256 ->   52 x  52 x 256 0.354 BF
+      55 conv    512       3 x 3/ 2     52 x  52 x 256 ->   26 x  26 x 512 1.595 BF
+      56 conv    256       1 x 1/ 1     26 x  26 x 512 ->   26 x  26 x 256 0.177 BF
+      57 route  55 		                           ->   26 x  26 x 512 
+      58 conv    256       1 x 1/ 1     26 x  26 x 512 ->   26 x  26 x 256 0.177 BF
+      59 conv    256       1 x 1/ 1     26 x  26 x 256 ->   26 x  26 x 256 0.089 BF
+      60 conv    256       3 x 3/ 1     26 x  26 x 256 ->   26 x  26 x 256 0.797 BF
+      61 Shortcut Layer: 58,  wt = 0, wn = 0, outputs:  26 x  26 x 256 0.000 BF
+      62 conv    256       1 x 1/ 1     26 x  26 x 256 ->   26 x  26 x 256 0.089 BF
+      63 conv    256       3 x 3/ 1     26 x  26 x 256 ->   26 x  26 x 256 0.797 BF
+      64 Shortcut Layer: 61,  wt = 0, wn = 0, outputs:  26 x  26 x 256 0.000 BF
+      65 conv    256       1 x 1/ 1     26 x  26 x 256 ->   26 x  26 x 256 0.089 BF
+      66 conv    256       3 x 3/ 1     26 x  26 x 256 ->   26 x  26 x 256 0.797 BF
+      67 Shortcut Layer: 64,  wt = 0, wn = 0, outputs:  26 x  26 x 256 0.000 BF
+      68 conv    256       1 x 1/ 1     26 x  26 x 256 ->   26 x  26 x 256 0.089 BF
+      69 conv    256       3 x 3/ 1     26 x  26 x 256 ->   26 x  26 x 256 0.797 BF
+      70 Shortcut Layer: 67,  wt = 0, wn = 0, outputs:  26 x  26 x 256 0.000 BF
+      71 conv    256       1 x 1/ 1     26 x  26 x 256 ->   26 x  26 x 256 0.089 BF
+      72 conv    256       3 x 3/ 1     26 x  26 x 256 ->   26 x  26 x 256 0.797 BF
+      73 Shortcut Layer: 70,  wt = 0, wn = 0, outputs:  26 x  26 x 256 0.000 BF
+      74 conv    256       1 x 1/ 1     26 x  26 x 256 ->   26 x  26 x 256 0.089 BF
+      75 conv    256       3 x 3/ 1     26 x  26 x 256 ->   26 x  26 x 256 0.797 BF
+      76 Shortcut Layer: 73,  wt = 0, wn = 0, outputs:  26 x  26 x 256 0.000 BF
+      77 conv    256       1 x 1/ 1     26 x  26 x 256 ->   26 x  26 x 256 0.089 BF
+      78 conv    256       3 x 3/ 1     26 x  26 x 256 ->   26 x  26 x 256 0.797 BF
+      79 Shortcut Layer: 76,  wt = 0, wn = 0, outputs:  26 x  26 x 256 0.000 BF
+      80 conv    256       1 x 1/ 1     26 x  26 x 256 ->   26 x  26 x 256 0.089 BF
+      81 conv    256       3 x 3/ 1     26 x  26 x 256 ->   26 x  26 x 256 0.797 BF
+      82 Shortcut Layer: 79,  wt = 0, wn = 0, outputs:  26 x  26 x 256 0.000 BF
+      83 conv    256       1 x 1/ 1     26 x  26 x 256 ->   26 x  26 x 256 0.089 BF
+      84 route  83 56 	                           ->   26 x  26 x 512 
+      85 conv    512       1 x 1/ 1     26 x  26 x 512 ->   26 x  26 x 512 0.354 BF
+      86 conv   1024       3 x 3/ 2     26 x  26 x 512 ->   13 x  13 x1024 1.595 BF
+      87 conv    512       1 x 1/ 1     13 x  13 x1024 ->   13 x  13 x 512 0.177 BF
+      88 route  86 		                           ->   13 x  13 x1024 
+      89 conv    512       1 x 1/ 1     13 x  13 x1024 ->   13 x  13 x 512 0.177 BF
+      90 conv    512       1 x 1/ 1     13 x  13 x 512 ->   13 x  13 x 512 0.089 BF
+      91 conv    512       3 x 3/ 1     13 x  13 x 512 ->   13 x  13 x 512 0.797 BF
+      92 Shortcut Layer: 89,  wt = 0, wn = 0, outputs:  13 x  13 x 512 0.000 BF
+      93 conv    512       1 x 1/ 1     13 x  13 x 512 ->   13 x  13 x 512 0.089 BF
+      94 conv    512       3 x 3/ 1     13 x  13 x 512 ->   13 x  13 x 512 0.797 BF
+      95 Shortcut Layer: 92,  wt = 0, wn = 0, outputs:  13 x  13 x 512 0.000 BF
+      96 conv    512       1 x 1/ 1     13 x  13 x 512 ->   13 x  13 x 512 0.089 BF
+      97 conv    512       3 x 3/ 1     13 x  13 x 512 ->   13 x  13 x 512 0.797 BF
+      98 Shortcut Layer: 95,  wt = 0, wn = 0, outputs:  13 x  13 x 512 0.000 BF
+      99 conv    512       1 x 1/ 1     13 x  13 x 512 ->   13 x  13 x 512 0.089 BF
+     100 conv    512       3 x 3/ 1     13 x  13 x 512 ->   13 x  13 x 512 0.797 BF
+     101 Shortcut Layer: 98,  wt = 0, wn = 0, outputs:  13 x  13 x 512 0.000 BF
+     102 conv    512       1 x 1/ 1     13 x  13 x 512 ->   13 x  13 x 512 0.089 BF
+     103 route  102 87 	                           ->   13 x  13 x1024 
+     104 conv   1024       1 x 1/ 1     13 x  13 x1024 ->   13 x  13 x1024 0.354 BF
+     105 conv    512       1 x 1/ 1     13 x  13 x1024 ->   13 x  13 x 512 0.177 BF
+     106 conv   1024       3 x 3/ 1     13 x  13 x 512 ->   13 x  13 x1024 1.595 BF
+     107 conv    512       1 x 1/ 1     13 x  13 x1024 ->   13 x  13 x 512 0.177 BF
+     108 max                5x 5/ 1     13 x  13 x 512 ->   13 x  13 x 512 0.002 BF
+     109 route  107 		                           ->   13 x  13 x 512 
+     110 max                9x 9/ 1     13 x  13 x 512 ->   13 x  13 x 512 0.007 BF
+     111 route  107 		                           ->   13 x  13 x 512 
+     112 max               13x13/ 1     13 x  13 x 512 ->   13 x  13 x 512 0.015 BF
+     113 route  112 110 108 107 	                   ->   13 x  13 x2048 
+     114 conv    512       1 x 1/ 1     13 x  13 x2048 ->   13 x  13 x 512 0.354 BF
+     115 conv   1024       3 x 3/ 1     13 x  13 x 512 ->   13 x  13 x1024 1.595 BF
+     116 conv    512       1 x 1/ 1     13 x  13 x1024 ->   13 x  13 x 512 0.177 BF
+     117 conv    256       1 x 1/ 1     13 x  13 x 512 ->   13 x  13 x 256 0.044 BF
+     118 upsample                 2x    13 x  13 x 256 ->   26 x  26 x 256
+     119 route  85 		                           ->   26 x  26 x 512 
+     120 conv    256       1 x 1/ 1     26 x  26 x 512 ->   26 x  26 x 256 0.177 BF
+     121 route  120 118 	                           ->   26 x  26 x 512 
+     122 conv    256       1 x 1/ 1     26 x  26 x 512 ->   26 x  26 x 256 0.177 BF
+     123 conv    512       3 x 3/ 1     26 x  26 x 256 ->   26 x  26 x 512 1.595 BF
+     124 conv    256       1 x 1/ 1     26 x  26 x 512 ->   26 x  26 x 256 0.177 BF
+     125 conv    512       3 x 3/ 1     26 x  26 x 256 ->   26 x  26 x 512 1.595 BF
+     126 conv    256       1 x 1/ 1     26 x  26 x 512 ->   26 x  26 x 256 0.177 BF
+     127 conv    128       1 x 1/ 1     26 x  26 x 256 ->   26 x  26 x 128 0.044 BF
+     128 upsample                 2x    26 x  26 x 128 ->   52 x  52 x 128
+     129 route  54 		                           ->   52 x  52 x 256 
+     130 conv    128       1 x 1/ 1     52 x  52 x 256 ->   52 x  52 x 128 0.177 BF
+     131 route  130 128 	                           ->   52 x  52 x 256 
+     132 conv    128       1 x 1/ 1     52 x  52 x 256 ->   52 x  52 x 128 0.177 BF
+     133 conv    256       3 x 3/ 1     52 x  52 x 128 ->   52 x  52 x 256 1.595 BF
+     134 conv    128       1 x 1/ 1     52 x  52 x 256 ->   52 x  52 x 128 0.177 BF
+     135 conv    256       3 x 3/ 1     52 x  52 x 128 ->   52 x  52 x 256 1.595 BF
+     136 conv    128       1 x 1/ 1     52 x  52 x 256 ->   52 x  52 x 128 0.177 BF
+     137 conv    256       3 x 3/ 1     52 x  52 x 128 ->   52 x  52 x 256 1.595 BF
+     138 conv     18       1 x 1/ 1     52 x  52 x 256 ->   52 x  52 x  18 0.025 BF
+     139 yolo
+    [yolo] params: iou loss: ciou (4), iou_norm: 0.07, obj_norm: 1.00, cls_norm: 1.00, delta_norm: 1.00, scale_x_y: 1.20
+    nms_kind: greedynms (1), beta = 0.600000 
+     140 route  136 		                           ->   52 x  52 x 128 
+     141 conv    256       3 x 3/ 2     52 x  52 x 128 ->   26 x  26 x 256 0.399 BF
+     142 route  141 126 	                           ->   26 x  26 x 512 
+     143 conv    256       1 x 1/ 1     26 x  26 x 512 ->   26 x  26 x 256 0.177 BF
+     144 conv    512       3 x 3/ 1     26 x  26 x 256 ->   26 x  26 x 512 1.595 BF
+     145 conv    256       1 x 1/ 1     26 x  26 x 512 ->   26 x  26 x 256 0.177 BF
+     146 conv    512       3 x 3/ 1     26 x  26 x 256 ->   26 x  26 x 512 1.595 BF
+     147 conv    256       1 x 1/ 1     26 x  26 x 512 ->   26 x  26 x 256 0.177 BF
+     148 conv    512       3 x 3/ 1     26 x  26 x 256 ->   26 x  26 x 512 1.595 BF
+     149 conv     18       1 x 1/ 1     26 x  26 x 512 ->   26 x  26 x  18 0.012 BF
+     150 yolo
+    [yolo] params: iou loss: ciou (4), iou_norm: 0.07, obj_norm: 1.00, cls_norm: 1.00, delta_norm: 1.00, scale_x_y: 1.10
+    nms_kind: greedynms (1), beta = 0.600000 
+     151 route  147 		                           ->   26 x  26 x 256 
+     152 conv    512       3 x 3/ 2     26 x  26 x 256 ->   13 x  13 x 512 0.399 BF
+     153 route  152 116 	                           ->   13 x  13 x1024 
+     154 conv    512       1 x 1/ 1     13 x  13 x1024 ->   13 x  13 x 512 0.177 BF
+     155 conv   1024       3 x 3/ 1     13 x  13 x 512 ->   13 x  13 x1024 1.595 BF
+     156 conv    512       1 x 1/ 1     13 x  13 x1024 ->   13 x  13 x 512 0.177 BF
+     157 conv   1024       3 x 3/ 1     13 x  13 x 512 ->   13 x  13 x1024 1.595 BF
+     158 conv    512       1 x 1/ 1     13 x  13 x1024 ->   13 x  13 x 512 0.177 BF
+     159 conv   1024       3 x 3/ 1     13 x  13 x 512 ->   13 x  13 x1024 1.595 BF
+     160 conv     18       1 x 1/ 1     13 x  13 x1024 ->   13 x  13 x  18 0.006 BF
+     161 yolo
+    [yolo] params: iou loss: ciou (4), iou_norm: 0.07, obj_norm: 1.00, cls_norm: 1.00, delta_norm: 1.00, scale_x_y: 1.05
+    nms_kind: greedynms (1), beta = 0.600000 
+    Total BFLOPS 59.563 
+    avg_outputs = 489778 
+     Allocate additional workspace_size = 12.46 MB 
+    Loading weights from backup/yolov4-obj_last.weights...
+     seen 64, trained: 38 K-images (0 Kilo-batches_64) 
+    Done! Loaded 162 layers from weights-file 
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/b15d6c0bdf90226d.jpg: Predicted in 100.508000 milli-seconds.
+    license_plate: 70%	(left_x:  868   top_y:  508   width:  101   height:   82)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/a6e3b0b73220cd32.jpg: Predicted in 96.745000 milli-seconds.
+    license_plate: 31%	(left_x:  427   top_y:  425   width:  185   height:   55)
+    license_plate: 77%	(left_x:  435   top_y:  444   width:  180   height:   27)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/d7d49b1a3706f3eb.jpg: Predicted in 96.334000 milli-seconds.
+    license_plate: 35%	(left_x:  178   top_y:  419   width:   95   height:   41)
+    license_plate: 30%	(left_x:  178   top_y:  435   width:  140   height:   34)
+    license_plate: 30%	(left_x:  423   top_y:  428   width:   82   height:   30)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/99732f172ac80128.jpg: Predicted in 90.732000 milli-seconds.
+    license_plate: 61%	(left_x:  675   top_y:  264   width:  103   height:   37)
+    license_plate: 29%	(left_x:  698   top_y:  316   width:  130   height:   71)
+    license_plate: 55%	(left_x:  745   top_y:  329   width:   58   height:   48)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/f5128e7a123b4fa8.jpg: Predicted in 90.922000 milli-seconds.
+    license_plate: 59%	(left_x:  377   top_y:  381   width:  125   height:   34)
+    license_plate: 35%	(left_x:  381   top_y:  384   width:   87   height:   23)
+    license_plate: 75%	(left_x:  561   top_y:  374   width:  171   height:   43)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/620bd952592bc0e9.jpg: Predicted in 90.396000 milli-seconds.
+    license_plate: 35%	(left_x:  945   top_y:  307   width:   61   height:   14)
+    license_plate: 30%	(left_x:  955   top_y:  294   width:   41   height:   24)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/bacc80fafc0566c3.jpg: Predicted in 90.677000 milli-seconds.
+    license_plate: 66%	(left_x:  779   top_y:  375   width:   37   height:   34)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/99c9c657582f958f.jpg: Predicted in 90.837000 milli-seconds.
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/b193070a9c45b5ab.jpg: Predicted in 90.501000 milli-seconds.
+    license_plate: 41%	(left_x:  201   top_y:  449   width:   96   height:   33)
+    license_plate: 82%	(left_x:  215   top_y:  434   width:   82   height:   63)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/35875c388efcddf0.jpg: Predicted in 90.591000 milli-seconds.
+    license_plate: 57%	(left_x:  467   top_y:  324   width:  256   height:  232)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/2d40d6e377c82ec9.jpg: Predicted in 90.941000 milli-seconds.
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/4ac941b9393d00f9.jpg: Predicted in 90.616000 milli-seconds.
+    license_plate: 35%	(left_x: 1000   top_y:  417   width:   23   height:   28)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/e2427db217e5c3db.jpg: Predicted in 90.696000 milli-seconds.
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/e4d600a63db8bf3a.jpg: Predicted in 90.429000 milli-seconds.
+    license_plate: 43%	(left_x:  879   top_y:  440   width:  121   height:  164)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/26192da5ce2afa62.jpg: Predicted in 90.992000 milli-seconds.
+    license_plate: 43%	(left_x:  331   top_y:   73   width:   76   height:   24)
+    license_plate: 42%	(left_x:  348   top_y:   70   width:   69   height:   34)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/133921bd26fff729.jpg: Predicted in 90.875000 milli-seconds.
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/747b0f12f54703ee.jpg: Predicted in 90.584000 milli-seconds.
+    license_plate: 36%	(left_x:  367   top_y:  542   width:  322   height:   51)
+    license_plate: 61%	(left_x:  443   top_y:  536   width:  155   height:   68)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/62bb93bbd270dd9a.jpg: Predicted in 90.833000 milli-seconds.
+    license_plate: 49%	(left_x:  577   top_y:  403   width:  234   height:   59)
+    license_plate: 64%	(left_x:  660   top_y:  412   width:   87   height:   33)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/2b97f5bf137ee8d1.jpg: Predicted in 91.025000 milli-seconds.
+    license_plate: 41%	(left_x:   88   top_y:  299   width:   40   height:   20)
+    license_plate: 45%	(left_x:  143   top_y:  434   width:   85   height:   34)
+    license_plate: 34%	(left_x:  945   top_y:  369   width:   63   height:   37)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/2619ec27a314e69c.jpg: Predicted in 89.486000 milli-seconds.
+    license_plate: 42%	(left_x:   34   top_y:  470   width:  116   height:   86)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/e9cd346a4a84d594.jpg: Predicted in 88.808000 milli-seconds.
+    license_plate: 91%	(left_x:  280   top_y:  480   width:  191   height:   94)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/9034927e7438bdd6.jpg: Predicted in 88.689000 milli-seconds.
+    license_plate: 40%	(left_x:  160   top_y:  774   width:  112   height:   62)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/4ff8bebd6d6a0361.jpg: Predicted in 88.701000 milli-seconds.
+    license_plate: 67%	(left_x:  398   top_y:  360   width:  259   height:   97)
+    license_plate: 41%	(left_x:  764   top_y:  428   width:  110   height:   43)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/de2b5afb7eda96cf.jpg: Predicted in 88.748000 milli-seconds.
+    license_plate: 80%	(left_x:  763   top_y:  412   width:  111   height:   39)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/53925df03b471f5d.jpg: Predicted in 88.974000 milli-seconds.
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/11b155ab5b3331cf.jpg: Predicted in 89.009000 milli-seconds.
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/28d1fb27a6e42ee7.jpg: Predicted in 88.973000 milli-seconds.
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/90596bf3313e72e3.jpg: Predicted in 89.038000 milli-seconds.
+    license_plate: 52%	(left_x:  105   top_y:  217   width:  135   height:   25)
+    license_plate: 79%	(left_x:  140   top_y:  208   width:   65   height:   34)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/c650ff8d3e8e75b3.jpg: Predicted in 89.136000 milli-seconds.
+    license_plate: 34%	(left_x:   50   top_y:  467   width:  190   height:   58)
+    license_plate: 53%	(left_x:  100   top_y:  457   width:   94   height:   80)
+    license_plate: 52%	(left_x:  112   top_y:  447   width:   70   height:   69)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/53386dae3cf13cc3.jpg: Predicted in 88.765000 milli-seconds.
+    license_plate: 71%	(left_x:  305   top_y:  501   width:  288   height:   70)
+    license_plate: 29%	(left_x:  382   top_y:  449   width:  147   height:  210)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/11f80fda2c38011c.jpg: Predicted in 89.086000 milli-seconds.
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/fe6139d150a3e2a8.jpg: Predicted in 88.788000 milli-seconds.
+    license_plate: 26%	(left_x:  358   top_y:  722   width:  274   height:   75)
+    license_plate: 54%	(left_x:  499   top_y:  206   width:  244   height:   46)
+    license_plate: 25%	(left_x:  557   top_y:  219   width:  161   height:   26)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/d6c5271e96ec1a61.jpg: Predicted in 88.948000 milli-seconds.
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/87793700161a7a6b.jpg: Predicted in 88.903000 milli-seconds.
+    license_plate: 48%	(left_x:  387   top_y:  449   width:  375   height:   83)
+    license_plate: 71%	(left_x:  472   top_y:  458   width:  209   height:   60)
+    license_plate: 69%	(left_x:  543   top_y:  443   width:   80   height:   92)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/2f3887024d298547.jpg: Predicted in 88.899000 milli-seconds.
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/b8a3f2ea385e45b3.jpg: Predicted in 89.006000 milli-seconds.
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/66be6b583048fa94.jpg: Predicted in 86.254000 milli-seconds.
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/1545c73bdecb3e2f.jpg: Predicted in 82.881000 milli-seconds.
+    license_plate: 46%	(left_x:   98   top_y:  340   width:  100   height:   31)
+    license_plate: 59%	(left_x:  112   top_y:  325   width:   63   height:   52)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/43339d9cbca470e4.jpg: Predicted in 81.816000 milli-seconds.
+    license_plate: 69%	(left_x:  596   top_y:  276   width:  171   height:   56)
+    license_plate: 56%	(left_x:  623   top_y:  251   width:  121   height:  110)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/c7b1e6f7c38fa1a0.jpg: Predicted in 74.126000 milli-seconds.
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/8cb5553e75d3d311.jpg: Predicted in 74.200000 milli-seconds.
+    license_plate: 87%	(left_x:  100   top_y:  340   width:   77   height:   73)
+    license_plate: 58%	(left_x:  109   top_y:  325   width:   57   height:  124)
+    license_plate: 44%	(left_x:  269   top_y:  150   width:   69   height:   39)
+    license_plate: 60%	(left_x:  278   top_y:  159   width:   50   height:   17)
+    license_plate: 80%	(left_x:  836   top_y:  143   width:   79   height:   26)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/88df55ff4e13b90d.jpg: Predicted in 74.230000 milli-seconds.
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/724307be418b2ed2.jpg: Predicted in 73.945000 milli-seconds.
+    license_plate: 69%	(left_x:  186   top_y:  429   width:  142   height:   36)
+    license_plate: 64%	(left_x:  210   top_y:  414   width:  111   height:   82)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/8c63cf76166c3bd7.jpg: Predicted in 74.102000 milli-seconds.
+    license_plate: 28%	(left_x:  715   top_y:  462   width:  182   height:   47)
+    license_plate: 27%	(left_x:  753   top_y:  449   width:   87   height:   42)
+    license_plate: 45%	(left_x:  761   top_y:  447   width:   68   height:   72)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/fb55b73f241bf50a.jpg: Predicted in 73.079000 milli-seconds.
+    license_plate: 39%	(left_x:  421   top_y:  368   width:  160   height:  151)
+    license_plate: 44%	(left_x:  685   top_y:  405   width:  189   height:   73)
+    license_plate: 32%	(left_x:  720   top_y:  378   width:  114   height:  120)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/4b3aba5dfb7a0492.jpg: Predicted in 71.903000 milli-seconds.
+    license_plate: 31%	(left_x:  123   top_y:  351   width:  183   height:  149)
+    license_plate: 37%	(left_x:  156   top_y:  391   width:  140   height:   82)
+    license_plate: 87%	(left_x:  196   top_y:  396   width:   56   height:   71)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/185d5dfa193c4ced.jpg: Predicted in 71.771000 milli-seconds.
+    license_plate: 96%	(left_x:  408   top_y:  307   width:  170   height:   80)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/057569768fd6303e.jpg: Predicted in 71.737000 milli-seconds.
+    license_plate: 53%	(left_x:   16   top_y:  245   width:   66   height:   23)
+    license_plate: 26%	(left_x:   20   top_y:  231   width:   61   height:   30)
+    license_plate: 75%	(left_x:  863   top_y:  444   width:  105   height:   95)
+    license_plate: 46%	(left_x:  899   top_y:  249   width:  113   height:   50)
+    license_plate: 57%	(left_x:  925   top_y:  254   width:   58   height:   35)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/f3814f4a6121838d.jpg: Predicted in 71.774000 milli-seconds.
+    license_plate: 32%	(left_x:  651   top_y:  221   width:  190   height:   83)
+    license_plate: 51%	(left_x:  675   top_y:  238   width:  133   height:   42)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/8256e277c7f47797.jpg: Predicted in 72.087000 milli-seconds.
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/e9561d7c16db565f.jpg: Predicted in 71.729000 milli-seconds.
+    license_plate: 71%	(left_x:  201   top_y:  345   width:  139   height:   45)
+    license_plate: 62%	(left_x:  217   top_y:  320   width:   99   height:   90)
+    license_plate: 33%	(left_x:  221   top_y:  357   width:   91   height:   40)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/90abd4265adf5a00.jpg: Predicted in 71.779000 milli-seconds.
+    license_plate: 31%	(left_x:   65   top_y:  443   width:   46   height:   14)
+    license_plate: 62%	(left_x:   71   top_y:  429   width:   35   height:   23)
+    license_plate: 34%	(left_x:  410   top_y:  458   width:   60   height:   17)
+    license_plate: 63%	(left_x:  418   top_y:  433   width:   44   height:   12)
+    license_plate: 53%	(left_x:  428   top_y:  454   width:   29   height:   21)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/6c144e47161867c2.jpg: Predicted in 72.020000 milli-seconds.
+    license_plate: 43%	(left_x:  319   top_y:  440   width:  176   height:   47)
+    license_plate: 25%	(left_x:  337   top_y:  443   width:  101   height:   36)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/8cdcb833ef1ef049.jpg: Predicted in 71.661000 milli-seconds.
+    license_plate: 53%	(left_x:  184   top_y:  355   width:  242   height:   46)
+    license_plate: 36%	(left_x:  247   top_y:  353   width:  112   height:   42)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/593e594137f374ab.jpg: Predicted in 71.896000 milli-seconds.
+    license_plate: 46%	(left_x:  358   top_y:  398   width:  645   height:  102)
+    license_plate: 31%	(left_x:  523   top_y:  377   width:  338   height:  117)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/bf0aac0878b0a3d2.jpg: Predicted in 73.061000 milli-seconds.
+    license_plate: 70%	(left_x:  632   top_y:  432   width:  120   height:   74)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/feaf383fc5de383f.jpg: Predicted in 71.679000 milli-seconds.
+    license_plate: 64%	(left_x:  383   top_y:  688   width:  226   height:   64)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/415d64bf8cfe82f2.jpg: Predicted in 71.950000 milli-seconds.
+    license_plate: 57%	(left_x:  367   top_y:  333   width:  268   height:   56)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/f9170e8c13a99991.jpg: Predicted in 71.903000 milli-seconds.
+    license_plate: 62%	(left_x:  397   top_y:   77   width:  224   height:  136)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/008637722500f239.jpg: Predicted in 71.801000 milli-seconds.
+    license_plate: 64%	(left_x:  252   top_y:  396   width:   95   height:   46)
+    license_plate: 61%	(left_x:  804   top_y:  257   width:   72   height:   24)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/5641e6ad7d2600f2.jpg: Predicted in 72.073000 milli-seconds.
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/5a96f5e1f9be8d42.jpg: Predicted in 71.861000 milli-seconds.
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/4572990fd64bb6be.jpg: Predicted in 71.886000 milli-seconds.
+    license_plate: 43%	(left_x:    5   top_y:  234   width:   81   height:   49)
+    license_plate: 55%	(left_x:   10   top_y:  237   width:   45   height:   42)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/4ee3f0e9a2fb20a9.jpg: Predicted in 72.200000 milli-seconds.
+    license_plate: 79%	(left_x:  300   top_y:  286   width:  209   height:  139)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/53ad98b12752ad16.jpg: Predicted in 71.597000 milli-seconds.
+    license_plate: 31%	(left_x:  114   top_y:  170   width:   59   height:   30)
+    license_plate: 50%	(left_x:  121   top_y:  174   width:   48   height:   15)
+    license_plate: 56%	(left_x:  239   top_y:  544   width:  113   height:   64)
+    license_plate: 78%	(left_x:  354   top_y:  336   width:  302   height:  116)
+    license_plate: 86%	(left_x:  446   top_y:  349   width:  114   height:   84)
+    license_plate: 31%	(left_x:  448   top_y:  320   width:  133   height:  147)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/f3d472955c13cae0.jpg: Predicted in 71.854000 milli-seconds.
+    license_plate: 43%	(left_x:  393   top_y:  581   width:  210   height:   52)
+    license_plate: 41%	(left_x:  454   top_y:  577   width:   91   height:   44)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/f5d1729aa333b284.jpg: Predicted in 71.874000 milli-seconds.
+    license_plate: 31%	(left_x:   74   top_y:  237   width:   73   height:   39)
+    license_plate: 47%	(left_x:   86   top_y:  243   width:   48   height:   27)
+    license_plate: 80%	(left_x:  702   top_y:  505   width:  130   height:   88)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/d565d93637d4e76d.jpg: Predicted in 72.051000 milli-seconds.
+    license_plate: 30%	(left_x:  315   top_y:  433   width:   98   height:   41)
+    license_plate: 27%	(left_x:  337   top_y:  436   width:   55   height:   44)
+    license_plate: 28%	(left_x:  398   top_y:  481   width:  371   height:   78)
+    license_plate: 41%	(left_x:  508   top_y:  486   width:  181   height:   57)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/f53243c2bb551b8a.jpg: Predicted in 71.947000 milli-seconds.
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/3ecd5af7c4f11963.jpg: Predicted in 71.748000 milli-seconds.
+    license_plate: 51%	(left_x:  202   top_y:  257   width:  499   height:  173)
+    license_plate: 52%	(left_x:  368   top_y:  245   width:  180   height:  192)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/182268e1f8c6525f.jpg: Predicted in 71.902000 milli-seconds.
+    license_plate: 57%	(left_x:  481   top_y:  400   width:  178   height:   99)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/f38265abb22a00e4.jpg: Predicted in 71.601000 milli-seconds.
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/b101900b26128253.jpg: Predicted in 72.045000 milli-seconds.
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/621837d55c229864.jpg: Predicted in 71.765000 milli-seconds.
+    license_plate: 59%	(left_x:  293   top_y:  565   width:  107   height:   33)
+    license_plate: 35%	(left_x:  319   top_y:  410   width:  159   height:   88)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/e79f6777f2fc08b2.jpg: Predicted in 71.789000 milli-seconds.
+    license_plate: 82%	(left_x:  391   top_y:  447   width:  271   height:   83)
+    license_plate: 52%	(left_x:  481   top_y:  452   width:   96   height:   68)
+    license_plate: 78%	(left_x:  487   top_y:  419   width:  159   height:  140)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/fc0a607ba5f38505.jpg: Predicted in 71.099000 milli-seconds.
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/4cb48c8bf41b70a4.jpg: Predicted in 68.944000 milli-seconds.
+    license_plate: 67%	(left_x:  372   top_y:  397   width:  305   height:  122)
+    license_plate: 69%	(left_x:  411   top_y:  431   width:  236   height:   60)
+    license_plate: 95%	(left_x:  438   top_y:  406   width:  151   height:  113)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/88fc866f92860d70.jpg: Predicted in 68.681000 milli-seconds.
+    license_plate: 41%	(left_x:  411   top_y:  673   width:  393   height:  154)
+    license_plate: 73%	(left_x:  532   top_y:  706   width:  175   height:  102)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/ae6724423f0d111a.jpg: Predicted in 68.707000 milli-seconds.
+    license_plate: 77%	(left_x:  611   top_y:  622   width:  222   height:   71)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/f5c2a80a21ddb78c.jpg: Predicted in 68.798000 milli-seconds.
+    license_plate: 84%	(left_x:  178   top_y:  226   width:  223   height:   41)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/b57fe3aa2ff9577e.jpg: Predicted in 68.569000 milli-seconds.
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/80d21c58a71a0751.jpg: Predicted in 68.838000 milli-seconds.
+    license_plate: 39%	(left_x:  252   top_y:  308   width:  192   height:   62)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/548a8e997a66a0c4.jpg: Predicted in 68.954000 milli-seconds.
+    license_plate: 42%	(left_x:  399   top_y:  421   width:  157   height:   75)
+    license_plate: 31%	(left_x:  446   top_y:  443   width:   67   height:   35)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/02a6ef3d9bd68e91.jpg: Predicted in 68.780000 milli-seconds.
+    license_plate: 50%	(left_x:  142   top_y:  311   width:   83   height:   35)
+    license_plate: 52%	(left_x:  155   top_y:  318   width:   55   height:   24)
+    license_plate: 54%	(left_x:  937   top_y:  117   width:   77   height:   11)
+    license_plate: 43%	(left_x:  955   top_y:  115   width:   40   height:   21)
+    license_plate: 58%	(left_x:  963   top_y:  113   width:   58   height:   22)
+    license_plate: 39%	(left_x:  972   top_y:  109   width:   39   height:   35)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/c274e026ac907eb9.jpg: Predicted in 68.598000 milli-seconds.
+    license_plate: 47%	(left_x:  273   top_y:  333   width:  300   height:  133)
+    license_plate: 49%	(left_x:  379   top_y:  367   width:  130   height:   67)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/6e819dc674a74078.jpg: Predicted in 68.831000 milli-seconds.
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/0cacb08195a3e2d7.jpg: Predicted in 68.634000 milli-seconds.
+    license_plate: 91%	(left_x:  290   top_y:  391   width:  161   height:   79)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/894cacdb385fdb6b.jpg: Predicted in 68.648000 milli-seconds.
+    license_plate: 39%	(left_x:  484   top_y:  541   width:  112   height:   50)
+    license_plate: 78%	(left_x:  490   top_y:  522   width:  102   height:   58)
+    license_plate: 28%	(left_x:  503   top_y:  538   width:   80   height:   29)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/485e5f37dd13ffab.jpg: Predicted in 68.619000 milli-seconds.
+    license_plate: 32%	(left_x:  279   top_y:  348   width:  111   height:   46)
+    license_plate: 36%	(left_x:  296   top_y:  363   width:  100   height:   36)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/27798906120ea394.jpg: Predicted in 68.747000 milli-seconds.
+    license_plate: 69%	(left_x:  153   top_y:  407   width:  197   height:   65)
+    license_plate: 39%	(left_x:  189   top_y:  421   width:  129   height:   57)
+    license_plate: 32%	(left_x:  884   top_y:  173   width:   96   height:   33)
+    license_plate: 38%	(left_x:  911   top_y:  181   width:   46   height:   19)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/0673b967f8c68eec.jpg: Predicted in 68.680000 milli-seconds.
+    license_plate: 64%	(left_x:  241   top_y:  534   width:  205   height:   96)
+    license_plate: 27%	(left_x:  295   top_y:  489   width:  143   height:  200)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/9a795bbf4e94d630.jpg: Predicted in 68.899000 milli-seconds.
+    license_plate: 29%	(left_x:  291   top_y:  464   width:  182   height:   59)
+    license_plate: 32%	(left_x:  329   top_y:  483   width:  151   height:   44)
+    license_plate: 36%	(left_x:  360   top_y:  450   width:  110   height:   89)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/081f5a6bc61b9c48.jpg: Predicted in 68.683000 milli-seconds.
+    license_plate: 85%	(left_x:  572   top_y:  342   width:  162   height:   76)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/908a3ac555a1a509.jpg: Predicted in 69.343000 milli-seconds.
+    license_plate: 30%	(left_x:  587   top_y:  480   width:  108   height:   25)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/d9fa2abf3719a4bd.jpg: Predicted in 68.713000 milli-seconds.
+    license_plate: 82%	(left_x:   32   top_y:  375   width:  198   height:   95)
+    license_plate: 52%	(left_x:  410   top_y:  407   width:  236   height:   83)
+    license_plate: 36%	(left_x:  449   top_y:  414   width:  132   height:   57)
+    license_plate: 46%	(left_x:  459   top_y:  428   width:  148   height:   52)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/76e14d05ee8acb6d.jpg: Predicted in 68.705000 milli-seconds.
+    license_plate: 70%	(left_x:   80   top_y:  306   width:  192   height:   64)
+    license_plate: 81%	(left_x:  126   top_y:  282   width:  114   height:  128)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/fdd963edc28bf163.jpg: Predicted in 68.754000 milli-seconds.
+    license_plate: 26%	(left_x:  233   top_y:  356   width:  198   height:   72)
+    license_plate: 28%	(left_x:  293   top_y:  321   width:   86   height:  107)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/e742e284c7c9da96.jpg: Predicted in 68.627000 milli-seconds.
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/4fa24c1abe969cb7.jpg: Predicted in 68.767000 milli-seconds.
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/4e593c88022ff6b1.jpg: Predicted in 68.860000 milli-seconds.
+    license_plate: 51%	(left_x:  550   top_y:  418   width:  201   height:  127)
+    license_plate: 54%	(left_x:  573   top_y:  448   width:  159   height:   67)
+    license_plate: 26%	(left_x:  742   top_y:  212   width:  109   height:   71)
+    license_plate: 77%	(left_x:  753   top_y:  234   width:   84   height:   45)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/4793138df3c05610.jpg: Predicted in 68.775000 milli-seconds.
+    license_plate: 78%	(left_x:  469   top_y:  394   width:  122   height:   28)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/1eb2ebab9cd7adf6.jpg: Predicted in 68.701000 milli-seconds.
+    license_plate: 26%	(left_x:  419   top_y:  394   width:   87   height:   24)
+    license_plate: 39%	(left_x:  437   top_y:  396   width:   55   height:   17)
+    license_plate: 33%	(left_x:  449   top_y:  399   width:   55   height:   16)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/d027c6e32db60e3c.jpg: Predicted in 68.468000 milli-seconds.
+    license_plate: 38%	(left_x:  272   top_y:  381   width:  456   height:  116)
+    license_plate: 94%	(left_x:  408   top_y:  409   width:  198   height:   73)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/ed7d99098d4af8e6.jpg: Predicted in 69.031000 milli-seconds.
+    license_plate: 28%	(left_x:  100   top_y:  389   width:  207   height:   39)
+    license_plate: 57%	(left_x:  129   top_y:  392   width:  120   height:   30)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/2a3e44107826e876.jpg: Predicted in 68.877000 milli-seconds.
+    license_plate: 64%	(left_x:  586   top_y:  232   width:  150   height:   79)
+    license_plate: 40%	(left_x:  603   top_y:  238   width:  115   height:   50)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/934645379fe657e1.jpg: Predicted in 69.047000 milli-seconds.
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/2bd26c63ebf598b7.jpg: Predicted in 68.902000 milli-seconds.
+    license_plate: 80%	(left_x:  641   top_y:  345   width:  177   height:   82)
+    license_plate: 60%	(left_x:  661   top_y:  383   width:  137   height:   31)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/3e2306f2cf4b2c67.jpg: Predicted in 68.262000 milli-seconds.
+    license_plate: 40%	(left_x:  560   top_y:  516   width:  150   height:   87)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/5a3f94aa35766f31.jpg: Predicted in 67.256000 milli-seconds.
+    license_plate: 34%	(left_x:  682   top_y:  324   width:  114   height:   35)
+    license_plate: 60%	(left_x:  691   top_y:  306   width:   87   height:   65)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/f1131b93a33cefb9.jpg: Predicted in 67.166000 milli-seconds.
+    license_plate: 64%	(left_x:  383   top_y:  489   width:  192   height:   82)
+    license_plate: 27%	(left_x:  403   top_y:  476   width:   98   height:  137)
+    license_plate: 29%	(left_x:  443   top_y:  364   width:   78   height:  362)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/2adddd0b09bb0f17.jpg: Predicted in 67.407000 milli-seconds.
+    license_plate: 35%	(left_x:  385   top_y:  371   width:  265   height:   65)
+    license_plate: 70%	(left_x:  432   top_y:  346   width:  180   height:  129)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/ad10c7d29f111692.jpg: Predicted in 67.127000 milli-seconds.
+    license_plate: 72%	(left_x:  759   top_y:  574   width:  112   height:   66)
+    license_plate: 67%	(left_x:  760   top_y:  592   width:  152   height:   39)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/6504632e0dc25997.jpg: Predicted in 67.353000 milli-seconds.
+    license_plate: 55%	(left_x:  153   top_y:  351   width:   66   height:   23)
+    license_plate: 46%	(left_x:  707   top_y:  575   width:  176   height:   48)
+    license_plate: 41%	(left_x:  749   top_y:  545   width:   90   height:  108)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/1f1d5bc31e444cc1.jpg: Predicted in 67.279000 milli-seconds.
+    license_plate: 53%	(left_x:  303   top_y:  363   width:  233   height:   48)
+    license_plate: 69%	(left_x:  350   top_y:  351   width:  138   height:   73)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/7a1f9520c7ecd5b1.jpg: Predicted in 67.240000 milli-seconds.
+    license_plate: 46%	(left_x:   86   top_y:  296   width:  164   height:   42)
+    license_plate: 26%	(left_x:  108   top_y:  305   width:  120   height:   22)
+    license_plate: 39%	(left_x:  784   top_y:  589   width:  144   height:   44)
+    license_plate: 66%	(left_x:  809   top_y:  583   width:  100   height:   32)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/1db3793d7c84faa1.jpg: Predicted in 67.428000 milli-seconds.
+    license_plate: 47%	(left_x:  160   top_y:  417   width:   55   height:   35)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/2956bcbedfc167b6.jpg: Predicted in 67.177000 milli-seconds.
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/5021041c726b6ee4.jpg: Predicted in 67.219000 milli-seconds.
+    license_plate: 49%	(left_x:  488   top_y:  367   width:  166   height:   82)
+    license_plate: 58%	(left_x:  521   top_y:  380   width:  101   height:   59)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/2e95d7a799e23e11.jpg: Predicted in 67.558000 milli-seconds.
+    license_plate: 90%	(left_x:  734   top_y:  269   width:  145   height:   44)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/3ed000628c6a0587.jpg: Predicted in 67.391000 milli-seconds.
+    license_plate: 74%	(left_x:  405   top_y:  363   width:  159   height:   63)
+    license_plate: 69%	(left_x:  438   top_y:  376   width:   87   height:   44)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/a79296fb4a48245e.jpg: Predicted in 67.108000 milli-seconds.
+    license_plate: 43%	(left_x:  181   top_y:  385   width:  210   height:   53)
+    license_plate: 74%	(left_x:  235   top_y:  407   width:  135   height:   30)
+    license_plate: 57%	(left_x:  249   top_y:  394   width:   92   height:   58)
+    license_plate: 30%	(left_x:  638   top_y:  296   width:   39   height:   25)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/15a51e29f5ceffd8.jpg: Predicted in 67.302000 milli-seconds.
+    license_plate: 52%	(left_x:  434   top_y:  404   width:  131   height:   60)
+    license_plate: 59%	(left_x:  438   top_y:  377   width:  156   height:  114)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/7cbc7ee444622a66.jpg: Predicted in 67.242000 milli-seconds.
+    license_plate: 26%	(left_x:  467   top_y:  616   width:  207   height:   81)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/a823532e163f5722.jpg: Predicted in 67.367000 milli-seconds.
+    license_plate: 45%	(left_x:  270   top_y:  563   width:  192   height:  104)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/b25d7d2cb7abf86b.jpg: Predicted in 67.408000 milli-seconds.
+    license_plate: 46%	(left_x:  367   top_y:  367   width:  306   height:  239)
+    license_plate: 63%	(left_x:  410   top_y:  437   width:  217   height:   77)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/c7df5232291486a3.jpg: Predicted in 67.674000 milli-seconds.
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/affd16c51644a893.jpg: Predicted in 67.384000 milli-seconds.
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/6aff04e9c32aec0f.jpg: Predicted in 67.294000 milli-seconds.
+    license_plate: 32%	(left_x:  -11   top_y:  693   width:  177   height:  111)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/23c2c79a9febbf3e.jpg: Predicted in 67.553000 milli-seconds.
+    license_plate: 63%	(left_x:  632   top_y:  372   width:  108   height:   63)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/f83d18919353c483.jpg: Predicted in 67.399000 milli-seconds.
+    license_plate: 26%	(left_x:  270   top_y:  452   width:  115   height:   32)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/7fc0fb6035bc06a6.jpg: Predicted in 67.333000 milli-seconds.
+    license_plate: 55%	(left_x:  404   top_y:  524   width:  152   height:   29)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/508f0a75156e5fd4.jpg: Predicted in 67.137000 milli-seconds.
+    license_plate: 26%	(left_x:  878   top_y:  449   width:  105   height:   63)
+    license_plate: 39%	(left_x:  911   top_y:  469   width:   47   height:   20)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/06b024413ad385a7.jpg: Predicted in 67.285000 milli-seconds.
+    license_plate: 44%	(left_x:  816   top_y:  448   width:  134   height:   88)
+    license_plate: 63%	(left_x:  834   top_y:  484   width:   86   height:   35)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/017527da8bfeb97d.jpg: Predicted in 67.116000 milli-seconds.
+    license_plate: 61%	(left_x:  491   top_y:  291   width:  322   height:  106)
+    license_plate: 82%	(left_x:  566   top_y:  307   width:  211   height:   74)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/a774a6f81fea258b.jpg: Predicted in 67.308000 milli-seconds.
+    license_plate: 55%	(left_x:  804   top_y:  361   width:  110   height:   79)
+    license_plate: 72%	(left_x:  814   top_y:  372   width:   90   height:   42)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/7f56adf4b9306ac9.jpg: Predicted in 67.332000 milli-seconds.
+    license_plate: 83%	(left_x:  175   top_y:  309   width:  240   height:   49)
+    license_plate: 28%	(left_x:  283   top_y:  294   width:   32   height:   68)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/8cca720c410ee7f8.jpg: Predicted in 67.427000 milli-seconds.
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/4148b2126f0986a4.jpg: Predicted in 67.375000 milli-seconds.
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/ec8a36f7874c0c34.jpg: Predicted in 67.438000 milli-seconds.
+    license_plate: 71%	(left_x:  194   top_y:  392   width:  111   height:   23)
+    license_plate: 71%	(left_x:  199   top_y:  374   width:  112   height:   49)
+    license_plate: 26%	(left_x:  205   top_y:  343   width:   82   height:   32)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/69450fa183d57a7b.jpg: Predicted in 67.273000 milli-seconds.
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/d44c0b2252bf8a92.jpg: Predicted in 67.376000 milli-seconds.
+    license_plate: 52%	(left_x:  345   top_y:  389   width:  272   height:   44)
+    license_plate: 31%	(left_x:  377   top_y:  374   width:  211   height:   88)
+    license_plate: 26%	(left_x:  417   top_y:  382   width:  126   height:   53)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/aca8821ff0368720.jpg: Predicted in 67.323000 milli-seconds.
+    license_plate: 46%	(left_x:  314   top_y:  169   width:   99   height:   46)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/0787b0fa95f545a5.jpg: Predicted in 67.378000 milli-seconds.
+    license_plate: 55%	(left_x:  424   top_y:  504   width:  198   height:   70)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/19ff847d0cd1c5ec.jpg: Predicted in 67.166000 milli-seconds.
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/aefe747315dd79fc.jpg: Predicted in 67.230000 milli-seconds.
+    license_plate: 56%	(left_x:  213   top_y:  509   width:  169   height:  100)
+    license_plate: 33%	(left_x:  269   top_y:  492   width:  105   height:  148)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/67945cf7a6beccdf.jpg: Predicted in 67.297000 milli-seconds.
+    license_plate: 71%	(left_x:  400   top_y:  436   width:  254   height:   41)
+    license_plate: 28%	(left_x:  495   top_y:  429   width:   73   height:   60)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/cb8c75fc1c7ccf73.jpg: Predicted in 67.379000 milli-seconds.
+    license_plate: 45%	(left_x:  290   top_y:  468   width:  407   height:  125)
+    license_plate: 47%	(left_x:  405   top_y:  475   width:  185   height:  124)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/e5edf93b7c9f5edb.jpg: Predicted in 67.412000 milli-seconds.
+    license_plate: 27%	(left_x:  336   top_y:  446   width:  164   height:   76)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/73467682c5995b65.jpg: Predicted in 67.634000 milli-seconds.
+    license_plate: 30%	(left_x:  369   top_y:  485   width:  228   height:   47)
+    license_plate: 37%	(left_x:  395   top_y:  485   width:  174   height:   29)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/ff69d090c735eccb.jpg: Predicted in 67.663000 milli-seconds.
+    license_plate: 49%	(left_x:  524   top_y:  339   width:  259   height:  169)
+    license_plate: 38%	(left_x:  542   top_y:  392   width:  222   height:   66)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/a3ad91fabd188be3.jpg: Predicted in 67.275000 milli-seconds.
+    license_plate: 65%	(left_x:  196   top_y:  414   width:  106   height:   52)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/1ca1155083156d72.jpg: Predicted in 67.249000 milli-seconds.
+    license_plate: 48%	(left_x:  172   top_y:  354   width:  652   height:  165)
+    license_plate: 91%	(left_x:  301   top_y:  406   width:  395   height:   56)
+    license_plate: 62%	(left_x:  354   top_y:  363   width:  276   height:  151)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/52bf6b555e578a34.jpg: Predicted in 67.381000 milli-seconds.
+    license_plate: 29%	(left_x:  970   top_y:  548   width:   47   height:   17)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/3e156de979eb0828.jpg: Predicted in 67.742000 milli-seconds.
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/28e26a4eb646c67a.jpg: Predicted in 67.349000 milli-seconds.
+    license_plate: 73%	(left_x:  374   top_y:  350   width:  308   height:   36)
+    license_plate: 64%	(left_x:  403   top_y:  323   width:  255   height:   86)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/0f0596b1c511e071.jpg: Predicted in 67.608000 milli-seconds.
+    license_plate: 43%	(left_x:  874   top_y:  416   width:  167   height:  119)
+    license_plate: 68%	(left_x:  906   top_y:  434   width:  114   height:   79)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/665cac5fd1cc2186.jpg: Predicted in 67.323000 milli-seconds.
+    license_plate: 73%	(left_x:  121   top_y:  409   width:  103   height:   51)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/4e2cb95b9c509b10.jpg: Predicted in 67.473000 milli-seconds.
+    license_plate: 78%	(left_x:  435   top_y:  262   width:  250   height:   74)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/74ee6d1b58ae2e70.jpg: Predicted in 67.211000 milli-seconds.
+    license_plate: 61%	(left_x:  450   top_y:  388   width:  141   height:   37)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/6b113b3edbadfe5d.jpg: Predicted in 67.030000 milli-seconds.
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/d8f6c135ec5486ff.jpg: Predicted in 67.432000 milli-seconds.
+    license_plate: 66%	(left_x:  770   top_y:  425   width:  166   height:   72)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/09453a7c716a9ef3.jpg: Predicted in 67.462000 milli-seconds.
+    license_plate: 67%	(left_x:  476   top_y:  632   width:  180   height:   57)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/d8daed582e6cce2d.jpg: Predicted in 67.448000 milli-seconds.
+    license_plate: 47%	(left_x:  454   top_y:  350   width:  323   height:  111)
+    license_plate: 35%	(left_x:  519   top_y:  362   width:  185   height:   80)
+    license_plate: 43%	(left_x:  578   top_y:  357   width:  166   height:   95)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/7f9740e95a74f2b9.jpg: Predicted in 67.246000 milli-seconds.
+    license_plate: 33%	(left_x:  273   top_y:  365   width:  508   height:   85)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/0d6ca8553971fefd.jpg: Predicted in 67.261000 milli-seconds.
+    license_plate: 79%	(left_x:  232   top_y:  597   width:  142   height:   44)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/9498d0aff8f9ff8c.jpg: Predicted in 67.311000 milli-seconds.
+    license_plate: 35%	(left_x:  843   top_y:  210   width:   67   height:   51)
+    license_plate: 43%	(left_x:  945   top_y:  365   width:   53   height:   42)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/66771a4870c324f9.jpg: Predicted in 67.384000 milli-seconds.
+    license_plate: 44%	(left_x:  744   top_y:  139   width:  181   height:   41)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/5cc19b450a51ee4c.jpg: Predicted in 67.350000 milli-seconds.
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/da1352ab6054a2e4.jpg: Predicted in 67.339000 milli-seconds.
+    license_plate: 95%	(left_x:  -41   top_y:  378   width: 1105   height:  224)
+    license_plate: 29%	(left_x:  173   top_y:  404   width:  567   height:  166)
+    license_plate: 82%	(left_x:  265   top_y:  323   width:  440   height:  352)
+    license_plate: 30%	(left_x:  311   top_y:  331   width:  233   height:  330)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/003a5aaf6d17c917.jpg: Predicted in 67.511000 milli-seconds.
+    license_plate: 26%	(left_x:   89   top_y:   62   width:   74   height:   48)
+    license_plate: 75%	(left_x:  212   top_y:  260   width:  149   height:   75)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/ccc1a2d44a290368.jpg: Predicted in 67.319000 milli-seconds.
+    license_plate: 71%	(left_x:  488   top_y:  420   width:  195   height:   64)
+    license_plate: 90%	(left_x:  528   top_y:  430   width:  102   height:   42)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/628a23a43f19c4db.jpg: Predicted in 67.527000 milli-seconds.
+    license_plate: 59%	(left_x:  140   top_y:  373   width:  125   height:   62)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/315aead7766727b8.jpg: Predicted in 67.148000 milli-seconds.
+    license_plate: 33%	(left_x:  333   top_y:  540   width:  121   height:   53)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/30b6cfb60bf44533.jpg: Predicted in 67.389000 milli-seconds.
+    license_plate: 28%	(left_x:  778   top_y:  562   width:   40   height:   43)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/4df1448703257ff0.jpg: Predicted in 67.312000 milli-seconds.
+    license_plate: 51%	(left_x:  319   top_y:  658   width:  322   height:  149)
+    license_plate: 55%	(left_x:  376   top_y:  691   width:  210   height:   83)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/f3bd3adea149193b.jpg: Predicted in 67.161000 milli-seconds.
+    license_plate: 73%	(left_x:  101   top_y:  542   width:  249   height:  107)
+    license_plate: 59%	(left_x:  158   top_y:  559   width:  135   height:   95)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/647ff22cf6950211.jpg: Predicted in 67.389000 milli-seconds.
+    license_plate: 61%	(left_x:  457   top_y:  470   width:  164   height:   76)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/128a59bca025bed6.jpg: Predicted in 67.502000 milli-seconds.
+    license_plate: 25%	(left_x:  381   top_y:  407   width:  220   height:   44)
+    license_plate: 80%	(left_x:  448   top_y:  401   width:  111   height:   47)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/12b7ea40074d3b20.jpg: Predicted in 67.324000 milli-seconds.
+    license_plate: 35%	(left_x:  257   top_y:  535   width:  466   height:  143)
+    license_plate: 46%	(left_x:  376   top_y:  571   width:  230   height:   56)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/7bcf6b4ec09f1ea7.jpg: Predicted in 67.257000 milli-seconds.
+    license_plate: 70%	(left_x:  246   top_y:  350   width:  418   height:  157)
+    license_plate: 85%	(left_x:  355   top_y:  385   width:  200   height:   85)
+    license_plate: 64%	(left_x:  386   top_y:  406   width:  153   height:   52)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/911e694dcc0814bf.jpg: Predicted in 67.688000 milli-seconds.
+    license_plate: 39%	(left_x:  113   top_y:  134   width:   31   height:    9)
+    license_plate: 69%	(left_x:  801   top_y:  541   width:   82   height:   68)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/2fe1f00b77a110a0.jpg: Predicted in 67.590000 milli-seconds.
+    license_plate: 36%	(left_x:  427   top_y:  328   width:  149   height:   90)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/693acf98575cbe27.jpg: Predicted in 67.470000 milli-seconds.
+    license_plate: 26%	(left_x:  152   top_y:  238   width:  112   height:   74)
+    license_plate: 84%	(left_x:  178   top_y:  254   width:   84   height:   49)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/0801961485534636.jpg: Predicted in 67.757000 milli-seconds.
+    license_plate: 91%	(left_x:  372   top_y:  627   width:  240   height:  116)
+    license_plate: 89%	(left_x:  405   top_y:  666   width:  182   height:   46)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/228bd52bbe043677.jpg: Predicted in 67.331000 milli-seconds.
+    license_plate: 29%	(left_x:  497   top_y:  279   width:   82   height:   15)
+    license_plate: 87%	(left_x:  509   top_y:  271   width:   66   height:   34)
+    license_plate: 32%	(left_x:  906   top_y:  204   width:   53   height:   20)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/b076ad266891d7aa.jpg: Predicted in 67.347000 milli-seconds.
+    license_plate: 33%	(left_x:  934   top_y:  484   width:   40   height:   12)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/b6ecda23586a6ba5.jpg: Predicted in 67.128000 milli-seconds.
+    license_plate: 65%	(left_x:  289   top_y:  569   width:  145   height:   69)
+    license_plate: 26%	(left_x:  535   top_y:  493   width:  218   height:   60)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/955a8e4c8ba8116e.jpg: Predicted in 67.433000 milli-seconds.
+    license_plate: 26%	(left_x:  560   top_y:  442   width:  276   height:   84)
+    license_plate: 82%	(left_x:  592   top_y:  395   width:  256   height:  180)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/d53a3bc813477685.jpg: Predicted in 67.392000 milli-seconds.
+    license_plate: 67%	(left_x:  405   top_y:  339   width:  118   height:   29)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/77e716224c85410f.jpg: Predicted in 67.218000 milli-seconds.
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/e6299b9e04680adb.jpg: Predicted in 67.152000 milli-seconds.
+    license_plate: 41%	(left_x:  951   top_y:  237   width:   46   height:   13)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/1edfbe8c28a86caf.jpg: Predicted in 67.193000 milli-seconds.
+    license_plate: 72%	(left_x:  310   top_y:  341   width:  370   height:   36)
+    license_plate: 39%	(left_x:  421   top_y:  323   width:  144   height:   67)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/85f0b4db3eb512ce.jpg: Predicted in 67.004000 milli-seconds.
+    license_plate: 64%	(left_x:  233   top_y:  363   width:  116   height:   48)
+    license_plate: 65%	(left_x:  730   top_y:  337   width:  130   height:   42)
+    license_plate: 45%	(left_x:  740   top_y:  347   width:   80   height:   24)
+    license_plate: 32%	(left_x:  756   top_y:  342   width:   83   height:   30)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/d28d71c2690c16ed.jpg: Predicted in 67.318000 milli-seconds.
+    license_plate: 31%	(left_x:  301   top_y:   71   width:   53   height:   21)
+    license_plate: 26%	(left_x:  585   top_y:  473   width:  218   height:   48)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/71881a9c0f7f0a86.jpg: Predicted in 67.453000 milli-seconds.
+    license_plate: 26%	(left_x:  453   top_y:  456   width:  214   height:   78)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/82b53fe7f9147c96.jpg: Predicted in 67.408000 milli-seconds.
+    license_plate: 45%	(left_x:  180   top_y:  389   width:   95   height:   34)
+    license_plate: 46%	(left_x:  184   top_y:  380   width:  122   height:   54)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/25d5c2fbd8b99662.jpg: Predicted in 67.147000 milli-seconds.
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/f73b754cdb1ab677.jpg: Predicted in 67.471000 milli-seconds.
+    license_plate: 84%	(left_x:  659   top_y:  491   width:  207   height:   83)
+    license_plate: 37%	(left_x:  667   top_y:  517   width:  184   height:   34)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/5581a1b7d2f0f2b4.jpg: Predicted in 67.332000 milli-seconds.
+    license_plate: 90%	(left_x:  422   top_y:  612   width:  148   height:   83)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/fc0f46431cb1dbe9.jpg: Predicted in 67.254000 milli-seconds.
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/1071b237587a698b.jpg: Predicted in 67.063000 milli-seconds.
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/fa9147596edc058f.jpg: Predicted in 67.350000 milli-seconds.
+    license_plate: 66%	(left_x:  624   top_y:  411   width:   77   height:   58)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/b5e7183b6a5abe6c.jpg: Predicted in 67.180000 milli-seconds.
+    license_plate: 55%	(left_x:  535   top_y:  523   width:  155   height:   64)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/67c834b73882a9f9.jpg: Predicted in 67.288000 milli-seconds.
+    license_plate: 48%	(left_x:  526   top_y:  317   width:  414   height:  132)
+    license_plate: 26%	(left_x:  599   top_y:  347   width:  240   height:   82)
+    license_plate: 47%	(left_x:  645   top_y:  319   width:  177   height:  152)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/9286a99f243b359a.jpg: Predicted in 67.815000 milli-seconds.
+    license_plate: 49%	(left_x:  787   top_y:  373   width:  104   height:   38)
+    license_plate: 81%	(left_x:  797   top_y:  357   width:  103   height:   72)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/98bcfbc4d3c8abbc.jpg: Predicted in 67.248000 milli-seconds.
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/d648b2ae1abc09f3.jpg: Predicted in 67.422000 milli-seconds.
+    license_plate: 73%	(left_x:  370   top_y:  519   width:  185   height:   74)
+    license_plate: 41%	(left_x:  970   top_y:  399   width:   50   height:   26)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/d2fe2b47668e9d8e.jpg: Predicted in 67.765000 milli-seconds.
+    license_plate: 74%	(left_x:  827   top_y:  460   width:  210   height:  109)
+    license_plate: 86%	(left_x:  863   top_y:  446   width:   84   height:  131)
+    license_plate: 28%	(left_x:  871   top_y:  452   width:  117   height:   86)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/2f90aaa72744452d.jpg: Predicted in 67.547000 milli-seconds.
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/fb4e60b5cee8b88e.jpg: Predicted in 67.400000 milli-seconds.
+    license_plate: 46%	(left_x:  278   top_y:  654   width:  170   height:  120)
+    license_plate: 51%	(left_x:  294   top_y:  246   width:   66   height:   31)
+    license_plate: 44%	(left_x:  306   top_y:  590   width:  122   height:  283)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/0c756c9366a8cb10.jpg: Predicted in 67.342000 milli-seconds.
+    license_plate: 78%	(left_x:  631   top_y:  569   width:  120   height:   88)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/064a8def3049d040.jpg: Predicted in 67.466000 milli-seconds.
+    license_plate: 64%	(left_x:   47   top_y:  486   width:  185   height:  106)
+    license_plate: 31%	(left_x:   80   top_y:  484   width:   80   height:  128)
+    license_plate: 29%	(left_x:   82   top_y:  508   width:  174   height:   96)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/044417ca6134604f.jpg: Predicted in 67.198000 milli-seconds.
+    license_plate: 72%	(left_x:  663   top_y:  345   width:  207   height:   65)
+    license_plate: 61%	(left_x:  686   top_y:  355   width:  146   height:   39)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/d5058059dc0ce0ad.jpg: Predicted in 67.173000 milli-seconds.
+    license_plate: 32%	(left_x:  369   top_y:  386   width:  340   height:   78)
+    license_plate: 43%	(left_x:  460   top_y:  365   width:  161   height:  134)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/bd12ea92bcab1afd.jpg: Predicted in 67.250000 milli-seconds.
+    license_plate: 74%	(left_x:  713   top_y:  379   width:  119   height:   85)
+    license_plate: 31%	(left_x:  741   top_y:  393   width:   73   height:   61)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/932eef14e5ee78b2.jpg: Predicted in 67.318000 milli-seconds.
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/844adfe06e003c09.jpg: Predicted in 67.279000 milli-seconds.
+    license_plate: 77%	(left_x:  589   top_y:  524   width:   60   height:   24)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/5daafbcf76fa6602.jpg: Predicted in 67.687000 milli-seconds.
+    license_plate: 54%	(left_x:  416   top_y:  514   width:  133   height:   37)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/efde2a25c1c9c924.jpg: Predicted in 67.705000 milli-seconds.
+    license_plate: 47%	(left_x:  576   top_y:  433   width:  289   height:   49)
+    license_plate: 45%	(left_x:  649   top_y:  423   width:  148   height:   66)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/abca9401dcf8f7ba.jpg: Predicted in 67.160000 milli-seconds.
+    license_plate: 35%	(left_x:   62   top_y:  325   width:   57   height:   42)
+    license_plate: 73%	(left_x:  443   top_y:  472   width:  154   height:   43)
+    license_plate: 61%	(left_x:  467   top_y:  452   width:  113   height:   80)
+    license_plate: 50%	(left_x:  683   top_y:  582   width:   64   height:   31)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/d3729058c6a4186e.jpg: Predicted in 67.503000 milli-seconds.
+    license_plate: 93%	(left_x:  566   top_y:  367   width:  166   height:   52)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/2d6640fb230770fd.jpg: Predicted in 67.574000 milli-seconds.
+    license_plate: 30%	(left_x:   40   top_y:  233   width:   22   height:   19)
+    license_plate: 43%	(left_x:   98   top_y:  246   width:   54   height:   12)
+    license_plate: 40%	(left_x:  108   top_y:  234   width:   39   height:   22)
+    license_plate: 26%	(left_x:  640   top_y:  315   width:  228   height:   63)
+    license_plate: 73%	(left_x:  687   top_y:  312   width:  149   height:   45)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/e82f13b4a2fe69f3.jpg: Predicted in 67.244000 milli-seconds.
+    license_plate: 48%	(left_x:  297   top_y:  391   width:  433   height:  348)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/71dbb47ebe504abe.jpg: Predicted in 67.507000 milli-seconds.
+    license_plate: 92%	(left_x:  132   top_y:  366   width:   92   height:   34)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/299f0363ae21d1c3.jpg: Predicted in 67.166000 milli-seconds.
+    license_plate: 28%	(left_x:  438   top_y:  404   width:  142   height:   77)
+    license_plate: 77%	(left_x:  470   top_y:  388   width:  115   height:   81)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/fd07d2db70cf53d5.jpg: Predicted in 67.468000 milli-seconds.
+    license_plate: 53%	(left_x:   91   top_y:  549   width:  156   height:   76)
+    license_plate: 61%	(left_x:  101   top_y:  570   width:  151   height:   32)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/d830c3573e57bfc0.jpg: Predicted in 67.548000 milli-seconds.
+    license_plate: 29%	(left_x:  395   top_y:  587   width:  143   height:   26)
+    license_plate: 80%	(left_x:  398   top_y:  578   width:  174   height:   47)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/08481c03daf6f35d.jpg: Predicted in 67.457000 milli-seconds.
+    license_plate: 65%	(left_x:  357   top_y:  602   width:  337   height:   85)
+    license_plate: 28%	(left_x:  384   top_y:  570   width:  213   height:  144)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/302d636c896c263f.jpg: Predicted in 67.506000 milli-seconds.
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/9c92cadb0f6237c0.jpg: Predicted in 67.353000 milli-seconds.
+    license_plate: 28%	(left_x:  742   top_y:  421   width:  264   height:   95)
+    license_plate: 86%	(left_x:  813   top_y:  443   width:  125   height:   65)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/b94993a2d67b455e.jpg: Predicted in 67.382000 milli-seconds.
+    license_plate: 51%	(left_x:  292   top_y:  218   width:   94   height:   67)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/5a122adbb1a776b7.jpg: Predicted in 67.508000 milli-seconds.
+    license_plate: 71%	(left_x:  418   top_y:  422   width:  283   height:   50)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/ff85b09876d61631.jpg: Predicted in 67.620000 milli-seconds.
+    license_plate: 38%	(left_x:  315   top_y:  638   width:  209   height:  182)
+    license_plate: 41%	(left_x:  353   top_y:  682   width:  161   height:   76)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/0e50ea14c4fc1353.jpg: Predicted in 67.318000 milli-seconds.
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/cdb1e8621d1c624e.jpg: Predicted in 67.421000 milli-seconds.
+    license_plate: 77%	(left_x:  652   top_y:  425   width:  224   height:   50)
+    license_plate: 72%	(left_x:  687   top_y:  446   width:  158   height:   14)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/5290f4027491d09b.jpg: Predicted in 67.413000 milli-seconds.
+    license_plate: 61%	(left_x:  152   top_y:  549   width:  208   height:   70)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/6eb18d1ad17cd174.jpg: Predicted in 67.399000 milli-seconds.
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/e40cafe0f0d3a550.jpg: Predicted in 67.096000 milli-seconds.
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/428a5131c8cff7da.jpg: Predicted in 67.630000 milli-seconds.
+    license_plate: 75%	(left_x:  418   top_y:  526   width:  212   height:  116)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/f0c7057612710f21.jpg: Predicted in 67.407000 milli-seconds.
+    license_plate: 50%	(left_x:  377   top_y:  473   width:  231   height:   40)
+    license_plate: 60%	(left_x:  403   top_y:  433   width:  185   height:   95)
+    license_plate: 61%	(left_x:  449   top_y:  457   width:  108   height:   95)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/50c37aeaf19acd5b.jpg: Predicted in 67.177000 milli-seconds.
+    license_plate: 51%	(left_x:  723   top_y:  480   width:   89   height:   54)
+    license_plate: 39%	(left_x:  752   top_y:  457   width:  104   height:   66)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/a9b2a2018f845393.jpg: Predicted in 67.657000 milli-seconds.
+    license_plate: 68%	(left_x:   77   top_y:  376   width:  143   height:   51)
+    license_plate: 85%	(left_x:  126   top_y:  353   width:   47   height:   97)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/b1a50a3824887ee2.jpg: Predicted in 67.311000 milli-seconds.
+    license_plate: 40%	(left_x:  323   top_y:  533   width:  259   height:   74)
+    license_plate: 50%	(left_x:  388   top_y:  536   width:  189   height:   49)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/49595029959689b7.jpg: Predicted in 67.659000 milli-seconds.
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/9238f5062ff1dc8d.jpg: Predicted in 67.657000 milli-seconds.
+    license_plate: 34%	(left_x:  765   top_y:  489   width:  167   height:   57)
+    license_plate: 67%	(left_x:  799   top_y:  500   width:   92   height:   31)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/a72a8cda1bb31e34.jpg: Predicted in 67.289000 milli-seconds.
+    license_plate: 49%	(left_x:  753   top_y:  568   width:  106   height:   75)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/daac3a6c64a79bea.jpg: Predicted in 67.180000 milli-seconds.
+    license_plate: 32%	(left_x:   25   top_y:  365   width:  177   height:   40)
+    license_plate: 34%	(left_x:   69   top_y:  349   width:   91   height:   64)
+    license_plate: 34%	(left_x:   94   top_y:  342   width:   73   height:   85)
+    license_plate: 58%	(left_x:  103   top_y:  366   width:   58   height:   35)
+    license_plate: 31%	(left_x:  284   top_y:  881   width:  198   height:   36)
+    license_plate: 30%	(left_x:  308   top_y:  867   width:  135   height:   64)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/a929dc75c20da7d8.jpg: Predicted in 67.561000 milli-seconds.
+    license_plate: 74%	(left_x:  269   top_y:  489   width:  283   height:  138)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/326c3286bcb5b2b0.jpg: Predicted in 67.519000 milli-seconds.
+    license_plate: 63%	(left_x:  727   top_y:  438   width:  147   height:   56)
+    license_plate: 58%	(left_x:  755   top_y:  438   width:   83   height:   47)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/a52079c6cc4050cd.jpg: Predicted in 67.399000 milli-seconds.
+    license_plate: 53%	(left_x:  440   top_y:  548   width:  131   height:   66)
+    license_plate: 31%	(left_x:  447   top_y:  565   width:  115   height:   34)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/f700c5b69c973db6.jpg: Predicted in 67.554000 milli-seconds.
+    license_plate: 63%	(left_x:  327   top_y:  335   width:  121   height:   32)
+    license_plate: 76%	(left_x:  348   top_y:  345   width:   65   height:   30)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/b32671b7cc279583.jpg: Predicted in 67.346000 milli-seconds.
+    license_plate: 32%	(left_x:  120   top_y:  444   width:  350   height:  117)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/f9f539977bfea25e.jpg: Predicted in 67.290000 milli-seconds.
+    license_plate: 42%	(left_x:  396   top_y:  477   width:  213   height:   89)
+    license_plate: 57%	(left_x:  434   top_y:  493   width:  132   height:   58)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/29f7991e696e6e3f.jpg: Predicted in 67.246000 milli-seconds.
+    license_plate: 56%	(left_x:  416   top_y:  308   width:  237   height:   82)
+    license_plate: 78%	(left_x:  433   top_y:  244   width:  187   height:  194)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/f3c9af100984744f.jpg: Predicted in 67.391000 milli-seconds.
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/d8cc6d566d01054b.jpg: Predicted in 67.698000 milli-seconds.
+    license_plate: 70%	(left_x:  249   top_y:  484   width:  504   height:  196)
+    license_plate: 30%	(left_x:  427   top_y:  474   width:  144   height:  182)
+    license_plate: 49%	(left_x:  831   top_y:  512   width:  172   height:  132)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/0fbd1b85fc01d2ae.jpg: Predicted in 67.411000 milli-seconds.
+    license_plate: 48%	(left_x:   71   top_y:  410   width:   76   height:   45)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/44afab29f5fa0abf.jpg: Predicted in 67.240000 milli-seconds.
+    license_plate: 74%	(left_x:  317   top_y:  562   width:  192   height:   89)
+    license_plate: 35%	(left_x:  910   top_y:  459   width:  115   height:   60)
+    license_plate: 44%	(left_x:  936   top_y:  455   width:   77   height:   50)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/3241f09a8964ddfb.jpg: Predicted in 67.409000 milli-seconds.
+    license_plate: 57%	(left_x:  337   top_y:  506   width:   58   height:   40)
+    license_plate: 41%	(left_x:  877   top_y:  366   width:   34   height:   20)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/50631041f74001aa.jpg: Predicted in 67.188000 milli-seconds.
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/548a985825bb991f.jpg: Predicted in 67.437000 milli-seconds.
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/dec4608715b2d28d.jpg: Predicted in 67.389000 milli-seconds.
+    license_plate: 58%	(left_x:  186   top_y:  429   width:  209   height:   57)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/3d98e3713783e82d.jpg: Predicted in 67.398000 milli-seconds.
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/d7b71c9fd144d58d.jpg: Predicted in 67.327000 milli-seconds.
+    license_plate: 83%	(left_x:  659   top_y:  478   width:  126   height:   80)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/03b7b71e1ffcb7a8.jpg: Predicted in 67.549000 milli-seconds.
+    license_plate: 43%	(left_x:    1   top_y:  321   width:   60   height:   54)
+    license_plate: 31%	(left_x:   46   top_y:  292   width:  162   height:   79)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/ebaefbcb87bfa8a1.jpg: Predicted in 67.284000 milli-seconds.
+    license_plate: 77%	(left_x:  277   top_y:  512   width:   98   height:   37)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/e08424f3cd5f6dac.jpg: Predicted in 67.504000 milli-seconds.
+    license_plate: 94%	(left_x:  260   top_y:  286   width:  448   height:  105)
+    license_plate: 74%	(left_x:  359   top_y:  307   width:  264   height:   65)
+    license_plate: 69%	(left_x:  405   top_y:  256   width:  191   height:  176)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/b91c3aaba25bf914.jpg: Predicted in 67.376000 milli-seconds.
+    license_plate: 25%	(left_x:  284   top_y:  478   width:  156   height:   32)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/e57d38ae6a921518.jpg: Predicted in 67.416000 milli-seconds.
+    license_plate: 50%	(left_x:  215   top_y:  422   width:  105   height:   84)
+    license_plate: 93%	(left_x:  221   top_y:  432   width:   90   height:   47)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/643c3cc1a4e85db2.jpg: Predicted in 67.649000 milli-seconds.
+    license_plate: 33%	(left_x:  124   top_y:  403   width:  104   height:   48)
+    license_plate: 40%	(left_x:  144   top_y:  357   width:   73   height:   91)
+    license_plate: 41%	(left_x:  153   top_y:  347   width:   52   height:  146)
+    license_plate: 37%	(left_x:  246   top_y:  423   width:   76   height:   25)
+    license_plate: 66%	(left_x:  457   top_y:  374   width:  138   height:   81)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/659dbf4f8c0fd29d.jpg: Predicted in 67.360000 milli-seconds.
+    license_plate: 78%	(left_x:  571   top_y:  638   width:  222   height:   97)
+    license_plate: 75%	(left_x:  633   top_y:  651   width:   99   height:   69)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/fed5c0275ff3a440.jpg: Predicted in 67.433000 milli-seconds.
+    license_plate: 67%	(left_x:   67   top_y:  373   width:  145   height:   57)
+    license_plate: 32%	(left_x:  938   top_y:  185   width:   75   height:   64)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/b01d46f9911d558b.jpg: Predicted in 67.554000 milli-seconds.
+    license_plate: 27%	(left_x:  298   top_y:  158   width:  400   height:   90)
+    license_plate: 67%	(left_x:  402   top_y:  129   width:  226   height:  136)
+    license_plate: 67%	(left_x:  638   top_y:  163   width:  258   height:   78)
+    license_plate: 72%	(left_x:  654   top_y:  184   width:  224   height:   38)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/80e02a518ffe4cb2.jpg: Predicted in 67.420000 milli-seconds.
+    license_plate: 46%	(left_x:  362   top_y:  381   width:  341   height:  176)
+    license_plate: 31%	(left_x:  418   top_y:  443   width:  225   height:   71)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/1ead26febde18ce9.jpg: Predicted in 67.360000 milli-seconds.
+    license_plate: 65%	(left_x:  274   top_y:  296   width:  594   height:   90)
+    license_plate: 38%	(left_x:  376   top_y:  303   width:  319   height:   74)
+    license_plate: 61%	(left_x:  382   top_y:  229   width:  352   height:  221)
+    license_plate: 35%	(left_x:  457   top_y:  265   width:  130   height:  112)
+    license_plate: 72%	(left_x:  531   top_y:  234   width:   80   height:  212)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/d5f4069e6734ac06.jpg: Predicted in 67.313000 milli-seconds.
+    license_plate: 87%	(left_x:  262   top_y:  394   width:   73   height:   54)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/65e080f9ac466664.jpg: Predicted in 67.731000 milli-seconds.
+    license_plate: 64%	(left_x:  208   top_y:  252   width:   68   height:   36)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/5ff91ccfc6f15d04.jpg: Predicted in 67.380000 milli-seconds.
+    license_plate: 84%	(left_x:  308   top_y:  282   width:  208   height:   54)
+    license_plate: 36%	(left_x:  354   top_y:  267   width:  126   height:   85)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/944281d0485869f0.jpg: Predicted in 67.385000 milli-seconds.
+    license_plate: 72%	(left_x:  344   top_y:  396   width:  359   height:  175)
+    license_plate: 74%	(left_x:  432   top_y:  462   width:  214   height:   45)
+    license_plate: 88%	(left_x:  432   top_y:  416   width:  189   height:  144)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/1f34454c4c073e1b.jpg: Predicted in 67.682000 milli-seconds.
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/36d7b8b3cca3b0f5.jpg: Predicted in 67.473000 milli-seconds.
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/00723dac8201a83e.jpg: Predicted in 67.503000 milli-seconds.
+    license_plate: 46%	(left_x:    5   top_y:  408   width:   49   height:   27)
+    license_plate: 29%	(left_x:  799   top_y:  346   width:   37   height:   30)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/c1d8b110186e095a.jpg: Predicted in 67.403000 milli-seconds.
+    license_plate: 88%	(left_x:  374   top_y:  395   width:  166   height:   55)
+    license_plate: 32%	(left_x:  395   top_y:  402   width:  106   height:   40)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/85b1dafd26aa98df.jpg: Predicted in 67.890000 milli-seconds.
+    license_plate: 42%	(left_x:   13   top_y:   65   width:   34   height:   10)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/54bd93e5a4de808a.jpg: Predicted in 67.640000 milli-seconds.
+    license_plate: 86%	(left_x:   92   top_y:  389   width:  175   height:   83)
+    license_plate: 45%	(left_x:  130   top_y:  417   width:   98   height:   55)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/749b4451492fc250.jpg: Predicted in 67.530000 milli-seconds.
+    license_plate: 69%	(left_x:  204   top_y:  462   width:   97   height:   50)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/c50d184afad1a9dc.jpg: Predicted in 68.176000 milli-seconds.
+    license_plate: 38%	(left_x:  285   top_y:  286   width:  166   height:   52)
+    license_plate: 56%	(left_x:  291   top_y:  373   width:   97   height:   94)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/7275e72e1996267f.jpg: Predicted in 67.296000 milli-seconds.
+    license_plate: 57%	(left_x:  426   top_y:  384   width:  338   height:   39)
+    license_plate: 45%	(left_x:  472   top_y:  371   width:  267   height:   75)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/1f0e643b125f00ec.jpg: Predicted in 67.142000 milli-seconds.
+    license_plate: 86%	(left_x:  677   top_y:  431   width:  189   height:   98)
+    license_plate: 68%	(left_x:  712   top_y:  457   width:  116   height:   54)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/63d3df798bc8840f.jpg: Predicted in 67.303000 milli-seconds.
+    license_plate: 48%	(left_x:  362   top_y:  667   width:  319   height:  108)
+    license_plate: 75%	(left_x:  397   top_y:  604   width:  212   height:  267)
+    license_plate: 29%	(left_x:  430   top_y:  670   width:  132   height:   92)
+    license_plate: 35%	(left_x:  461   top_y:  587   width:  132   height:  225)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/5fb888d79b551331.jpg: Predicted in 67.736000 milli-seconds.
+    license_plate: 76%	(left_x:  401   top_y:  454   width:  397   height:  225)
+    license_plate: 76%	(left_x:  501   top_y:  481   width:  223   height:  164)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/52ceb1fc30b413e5.jpg: Predicted in 67.715000 milli-seconds.
+    license_plate: 29%	(left_x:  461   top_y:  364   width:   39   height:   53)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/b09813a8742277c7.jpg: Predicted in 67.589000 milli-seconds.
+    license_plate: 27%	(left_x:  390   top_y:  352   width:  204   height:   43)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/ce97f7bc90e97109.jpg: Predicted in 67.410000 milli-seconds.
+    license_plate: 29%	(left_x:  961   top_y:  170   width:   65   height:   18)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/da8186b39f042cdf.jpg: Predicted in 67.356000 milli-seconds.
+    license_plate: 71%	(left_x:  381   top_y:  420   width:  167   height:   26)
+    license_plate: 53%	(left_x:  408   top_y:  386   width:  107   height:   79)
+    license_plate: 25%	(left_x:  421   top_y:  404   width:  112   height:   45)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/be9fd0014b5a4f2a.jpg: Predicted in 67.555000 milli-seconds.
+    license_plate: 75%	(left_x:  203   top_y:  327   width:  182   height:   67)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/86c92b0402fec141.jpg: Predicted in 67.430000 milli-seconds.
+    license_plate: 77%	(left_x:  298   top_y:  360   width:  283   height:   48)
+    license_plate: 41%	(left_x:  372   top_y:  336   width:  163   height:   92)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/9ebbaf4d1f8d6e7b.jpg: Predicted in 67.627000 milli-seconds.
+    license_plate: 79%	(left_x:  355   top_y:  145   width:  284   height:  209)
+    license_plate: 93%	(left_x:  384   top_y:  190   width:  213   height:  111)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/791d63b1c3499e4f.jpg: Predicted in 67.606000 milli-seconds.
+    license_plate: 26%	(left_x:  701   top_y:  485   width:  134   height:   70)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/b3b61da98e22cd4a.jpg: Predicted in 67.865000 milli-seconds.
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/ef1bd7b718a3f6e8.jpg: Predicted in 67.225000 milli-seconds.
+    license_plate: 25%	(left_x:  740   top_y:  228   width:   73   height:   29)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/87b4f1202cd06440.jpg: Predicted in 67.694000 milli-seconds.
+    license_plate: 59%	(left_x:   71   top_y:  553   width:  118   height:   24)
+    license_plate: 47%	(left_x:  783   top_y:  646   width:  184   height:   39)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/0170ea8e1a33375a.jpg: Predicted in 67.490000 milli-seconds.
+    license_plate: 66%	(left_x:  576   top_y:  463   width:  204   height:   43)
+    license_plate: 49%	(left_x:  614   top_y:  449   width:  123   height:   70)
+    license_plate: 26%	(left_x:  624   top_y:  443   width:   56   height:   76)
+    license_plate: 40%	(left_x:  910   top_y:  126   width:   52   height:   21)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/a5d6f8d36672fa64.jpg: Predicted in 67.550000 milli-seconds.
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/e9fdd0a41cb61da6.jpg: Predicted in 67.855000 milli-seconds.
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/19eba8ac64eed194.jpg: Predicted in 67.332000 milli-seconds.
+    license_plate: 30%	(left_x:  242   top_y:  299   width:  131   height:   91)
+    license_plate: 82%	(left_x:  270   top_y:  308   width:   69   height:   66)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/453a77009b27e253.jpg: Predicted in 67.538000 milli-seconds.
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/46a7991da6461831.jpg: Predicted in 67.399000 milli-seconds.
+    license_plate: 45%	(left_x:   71   top_y:  347   width:   75   height:   53)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/e8b36c888a75d742.jpg: Predicted in 67.669000 milli-seconds.
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/b9f5b9acf1777acf.jpg: Predicted in 67.627000 milli-seconds.
+    license_plate: 30%	(left_x:  197   top_y:  355   width:  552   height:  112)
+    license_plate: 35%	(left_x:  334   top_y:  373   width:  289   height:   70)
+    license_plate: 38%	(left_x:  407   top_y:  367   width:  137   height:   98)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/54ebca2064066a49.jpg: Predicted in 67.521000 milli-seconds.
+    license_plate: 44%	(left_x:  472   top_y:  372   width:  146   height:   81)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/7b4e86e1c94d65de.jpg: Predicted in 67.197000 milli-seconds.
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/f194eaf4f3d1d835.jpg: Predicted in 67.341000 milli-seconds.
+    license_plate: 52%	(left_x:  291   top_y:  484   width:   88   height:   60)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/85ddb7e0f60156a3.jpg: Predicted in 67.715000 milli-seconds.
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/64de505bd2bac82b.jpg: Predicted in 67.580000 milli-seconds.
+    license_plate: 43%	(left_x:  186   top_y:  564   width:  228   height:   79)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/70e7b5173fe1e289.jpg: Predicted in 67.695000 milli-seconds.
+    license_plate: 60%	(left_x:  100   top_y:  248   width:  390   height:   91)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/ee047c8ca2cca8a2.jpg: Predicted in 67.460000 milli-seconds.
+    license_plate: 81%	(left_x:  325   top_y:  332   width:  409   height:   89)
+    license_plate: 47%	(left_x:  450   top_y:  363   width:  139   height:   30)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/091c033b2a7df15b.jpg: Predicted in 67.464000 milli-seconds.
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/e52d4f347b2cf90f.jpg: Predicted in 67.292000 milli-seconds.
+    license_plate: 56%	(left_x:  480   top_y:  414   width:  130   height:   99)
+    license_plate: 47%	(left_x:  506   top_y:  442   width:  102   height:   46)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/5df8816356fc2b29.jpg: Predicted in 67.546000 milli-seconds.
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/28bd6c6b1050e055.jpg: Predicted in 67.400000 milli-seconds.
+    license_plate: 30%	(left_x:  146   top_y:  236   width:   85   height:   99)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/460753acbd6e6dad.jpg: Predicted in 67.562000 milli-seconds.
+    license_plate: 66%	(left_x:  302   top_y:  558   width:  133   height:   32)
+    license_plate: 63%	(left_x:  308   top_y:  524   width:  118   height:   90)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/6a0ef049e5ec4b16.jpg: Predicted in 67.527000 milli-seconds.
+    license_plate: 65%	(left_x:   16   top_y:  449   width:  234   height:   78)
+    license_plate: 72%	(left_x:   43   top_y:  389   width:  184   height:  190)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/b7cdb5c0c99002b7.jpg: Predicted in 67.330000 milli-seconds.
+    license_plate: 91%	(left_x:  709   top_y:  278   width:  188   height:   50)
+    license_plate: 27%	(left_x:  722   top_y:  252   width:  163   height:  127)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/61a69ad713142e45.jpg: Predicted in 67.466000 milli-seconds.
+    license_plate: 66%	(left_x:  303   top_y:  484   width:  120   height:   80)
+    license_plate: 83%	(left_x:  308   top_y:  510   width:  117   height:   31)
+    license_plate: 72%	(left_x:  329   top_y:  505   width:   80   height:   60)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/9995dfc6e0eae5a1.jpg: Predicted in 67.491000 milli-seconds.
+    license_plate: 50%	(left_x:  393   top_y:  389   width:  133   height:   63)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/aac1aaaf824b63dd.jpg: Predicted in 67.332000 milli-seconds.
+    license_plate: 26%	(left_x:   20   top_y:  238   width:   95   height:   73)
+    license_plate: 56%	(left_x:   47   top_y:  261   width:   42   height:   26)
+    license_plate: 67%	(left_x:  444   top_y:  436   width:  157   height:   56)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/0ee91c4938b6e7ee.jpg: Predicted in 67.529000 milli-seconds.
+    license_plate: 62%	(left_x:  296   top_y:  565   width:  152   height:   75)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/18098dc9ee6aad80.jpg: Predicted in 67.426000 milli-seconds.
+    license_plate: 52%	(left_x:  640   top_y:  389   width:  114   height:   33)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/d27e094e98374ff8.jpg: Predicted in 67.539000 milli-seconds.
+    license_plate: 74%	(left_x:  537   top_y:  439   width:  218   height:   47)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/fa897478280a2758.jpg: Predicted in 67.393000 milli-seconds.
+    license_plate: 33%	(left_x:  506   top_y:  476   width:  223   height:   69)
+    license_plate: 31%	(left_x:  555   top_y:  463   width:  128   height:   62)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/1a3e9d87d733ff7f.jpg: Predicted in 67.722000 milli-seconds.
+    license_plate: 67%	(left_x:  827   top_y:  336   width:   94   height:   36)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/b6580dec5ada277d.jpg: Predicted in 67.386000 milli-seconds.
+    license_plate: 54%	(left_x:  218   top_y:  351   width:  235   height:   52)
+    license_plate: 76%	(left_x:  226   top_y:  282   width:  206   height:  181)
+    license_plate: 40%	(left_x:  243   top_y:  320   width:  165   height:   90)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/59b83c5f8f1dcfa4.jpg: Predicted in 67.487000 milli-seconds.
+    license_plate: 29%	(left_x:  271   top_y:  727   width:  248   height:   82)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/140e8d10ff02e7e7.jpg: Predicted in 67.174000 milli-seconds.
+    license_plate: 39%	(left_x:  438   top_y:  395   width:  174   height:   37)
+    license_plate: 42%	(left_x:  484   top_y:  397   width:   78   height:   31)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/1e6e75488d7878aa.jpg: Predicted in 67.281000 milli-seconds.
+    license_plate: 35%	(left_x:  697   top_y:  364   width:   42   height:   24)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/bbcac63e32bd8137.jpg: Predicted in 67.558000 milli-seconds.
+    license_plate: 52%	(left_x:  183   top_y:  221   width:  784   height:  335)
+    license_plate: 49%	(left_x:  405   top_y:  230   width:  267   height:  250)
+    license_plate: 55%	(left_x:  428   top_y:  300   width:  292   height:  155)
+    license_plate: 30%	(left_x:  504   top_y:  289   width:  180   height:  134)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/334f31e809ec9a77.jpg: Predicted in 67.398000 milli-seconds.
+    license_plate: 28%	(left_x:  139   top_y:  439   width:  143   height:   49)
+    license_plate: 37%	(left_x:  150   top_y:  434   width:   78   height:   66)
+    license_plate: 43%	(left_x:  165   top_y:  447   width:   79   height:   41)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/be654a7eabe0e891.jpg: Predicted in 67.569000 milli-seconds.
+    license_plate: 67%	(left_x:  790   top_y:  374   width:  130   height:   63)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/575d96d014e4fbab.jpg: Predicted in 67.484000 milli-seconds.
+    license_plate: 80%	(left_x:  376   top_y:  480   width:  151   height:   57)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/895d440e05b2a8d8.jpg: Predicted in 67.518000 milli-seconds.
+    license_plate: 25%	(left_x:  198   top_y:  516   width:  202   height:   86)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/7539902687e8f3a4.jpg: Predicted in 67.310000 milli-seconds.
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/e1925cd0ae28fbd9.jpg: Predicted in 67.767000 milli-seconds.
+    license_plate: 85%	(left_x:  435   top_y:  376   width:  168   height:   77)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/185fd6653258d3ed.jpg: Predicted in 67.509000 milli-seconds.
+    license_plate: 48%	(left_x:  637   top_y:  420   width:  193   height:   69)
+    license_plate: 42%	(left_x:  691   top_y:  443   width:   91   height:   21)
+    license_plate: 76%	(left_x:  699   top_y:  430   width:   81   height:   44)
+    license_plate: 38%	(left_x:  702   top_y:  494   width:   74   height:   26)
+    license_plate: 41%	(left_x:  719   top_y:  499   width:   38   height:   16)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/26183d88c4f8012f.jpg: Predicted in 67.327000 milli-seconds.
+    license_plate: 63%	(left_x:  194   top_y:  442   width:  194   height:   96)
+    license_plate: 68%	(left_x:  229   top_y:  470   width:  135   height:   37)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/288a95c01e43cd14.jpg: Predicted in 67.525000 milli-seconds.
+    license_plate: 76%	(left_x:  465   top_y:  378   width:  197   height:   48)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/16789af24af158d8.jpg: Predicted in 67.820000 milli-seconds.
+    license_plate: 40%	(left_x:  232   top_y:  473   width:  441   height:  100)
+    license_plate: 64%	(left_x:  290   top_y:  493   width:  326   height:   60)
+    license_plate: 28%	(left_x:  353   top_y:  468   width:  171   height:  118)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/16c15b29b30148c2.jpg: Predicted in 67.574000 milli-seconds.
+    license_plate: 60%	(left_x:  184   top_y:  582   width:  439   height:   94)
+    license_plate: 28%	(left_x:  289   top_y:  595   width:  248   height:   63)
+    license_plate: 83%	(left_x:  374   top_y:  573   width:   80   height:  133)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/488722909dd9c0ac.jpg: Predicted in 67.532000 milli-seconds.
+    license_plate: 46%	(left_x:  326   top_y:  671   width:  173   height:   97)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/b6e55f97085c3732.jpg: Predicted in 67.545000 milli-seconds.
+    license_plate: 41%	(left_x:  195   top_y:  549   width:  118   height:   48)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/17585ef2efb5ef9b.jpg: Predicted in 67.390000 milli-seconds.
+    license_plate: 29%	(left_x:  282   top_y:  777   width:  275   height:   56)
+    license_plate: 44%	(left_x:  317   top_y:  764   width:  160   height:   76)
+    license_plate: 35%	(left_x:  410   top_y:  656   width:   70   height:  325)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/3feecc5809a29627.jpg: Predicted in 67.592000 milli-seconds.
+    license_plate: 41%	(left_x:  186   top_y:  702   width:  310   height:   62)
+    license_plate: 43%	(left_x:  289   top_y:  703   width:  161   height:   60)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/bf2f25f3ed9ff4d5.jpg: Predicted in 67.196000 milli-seconds.
+    license_plate: 28%	(left_x:  307   top_y:  413   width:  449   height:   82)
+    license_plate: 76%	(left_x:  400   top_y:  417   width:  221   height:   81)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/343326e127297379.jpg: Predicted in 67.626000 milli-seconds.
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/6846c275ded01f85.jpg: Predicted in 67.418000 milli-seconds.
+    license_plate: 62%	(left_x:  531   top_y:  487   width:  403   height:  204)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/defd8f4b30b3e1e1.jpg: Predicted in 67.633000 milli-seconds.
+    license_plate: 56%	(left_x:  182   top_y:  374   width:   95   height:  103)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/a67bc3f5f8650c73.jpg: Predicted in 67.607000 milli-seconds.
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/ea02d99ba51372ee.jpg: Predicted in 67.281000 milli-seconds.
+    license_plate: 29%	(left_x:  144   top_y:  591   width:  153   height:   42)
+    license_plate: 51%	(left_x:  819   top_y:  322   width:   33   height:   15)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/5373ec295ea62c47.jpg: Predicted in 67.368000 milli-seconds.
+    license_plate: 71%	(left_x:   27   top_y:  204   width:  118   height:   28)
+    license_plate: 54%	(left_x:  809   top_y:  377   width:  173   height:   68)
+    license_plate: 82%	(left_x:  840   top_y:  383   width:  103   height:   53)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/cb4b754537798d23.jpg: Predicted in 67.521000 milli-seconds.
+    license_plate: 48%	(left_x:    4   top_y:  344   width:   43   height:   33)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/125622a2508e3b1d.jpg: Predicted in 67.682000 milli-seconds.
+    license_plate: 25%	(left_x:   35   top_y:  435   width:   33   height:   23)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/6306fc7f3573eb70.jpg: Predicted in 67.689000 milli-seconds.
+    license_plate: 44%	(left_x:  528   top_y:  437   width:   25   height:    9)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/43b1b0028dd2db8d.jpg: Predicted in 67.418000 milli-seconds.
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/a56e82026bb71ad5.jpg: Predicted in 67.713000 milli-seconds.
+    license_plate: 71%	(left_x:  376   top_y:  386   width:  293   height:  139)
+    license_plate: 90%	(left_x:  426   top_y:  424   width:  193   height:   61)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/a21aa7c1d7b93d12.jpg: Predicted in 67.468000 milli-seconds.
+    license_plate: 38%	(left_x:  115   top_y:  393   width:  278   height:   90)
+    license_plate: 53%	(left_x:  213   top_y:  372   width:   96   height:  117)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/2e8a83cfb1afe7ba.jpg: Predicted in 67.805000 milli-seconds.
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/246a0e4264a39433.jpg: Predicted in 67.455000 milli-seconds.
+    license_plate: 51%	(left_x:  282   top_y:  447   width:  155   height:   61)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/37ff77d13a54aac2.jpg: Predicted in 67.581000 milli-seconds.
+    license_plate: 63%	(left_x:  381   top_y:  466   width:  138   height:   38)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/9a4fe6361597f264.jpg: Predicted in 67.473000 milli-seconds.
+    license_plate: 61%	(left_x:  361   top_y:  424   width:  267   height:   69)
+    license_plate: 29%	(left_x:  453   top_y:  410   width:  114   height:   92)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/e1120bfe48f85c1b.jpg: Predicted in 67.622000 milli-seconds.
+    license_plate: 72%	(left_x:  186   top_y:  446   width:  124   height:   77)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/8ceed1ec9bc3ac45.jpg: Predicted in 67.360000 milli-seconds.
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/2c09fab0221652c5.jpg: Predicted in 67.285000 milli-seconds.
+    license_plate: 27%	(left_x:  488   top_y:  402   width:  181   height:   68)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/39c193bcc0c00f9e.jpg: Predicted in 67.259000 milli-seconds.
+    license_plate: 53%	(left_x:  187   top_y:  369   width:  295   height:  138)
+    license_plate: 32%	(left_x:  274   top_y:  409   width:  144   height:   44)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/4c04b488ddc48225.jpg: Predicted in 67.429000 milli-seconds.
+    license_plate: 90%	(left_x:  757   top_y:  332   width:  173   height:   60)
+    license_plate: 78%	(left_x:  783   top_y:  345   width:  114   height:   38)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/2753536137929411.jpg: Predicted in 67.402000 milli-seconds.
+    license_plate: 56%	(left_x:  109   top_y:  397   width:  149   height:   52)
+    license_plate: 90%	(left_x:  140   top_y:  403   width:   80   height:   57)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/a54e7bb80448f3b0.jpg: Predicted in 67.516000 milli-seconds.
+    license_plate: 27%	(left_x:    5   top_y:  412   width:   48   height:  108)
+    license_plate: 53%	(left_x:  683   top_y:  351   width:  183   height:   77)
+    license_plate: 33%	(left_x:  721   top_y:  366   width:   79   height:   47)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/d59b7a0ff294e3be.jpg: Predicted in 67.384000 milli-seconds.
+    license_plate: 84%	(left_x:  421   top_y:  569   width:  164   height:   54)
+    license_plate: 57%	(left_x:  453   top_y:  581   width:   88   height:   24)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/b1096bc91a89b0cf.jpg: Predicted in 67.376000 milli-seconds.
+    license_plate: 78%	(left_x:  692   top_y:  388   width:  144   height:   58)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/edecf3a6d569b7c9.jpg: Predicted in 67.520000 milli-seconds.
+    license_plate: 34%	(left_x:  -77   top_y:  780   width:  373   height:  132)
+    license_plate: 59%	(left_x:  -27   top_y:  727   width:  244   height:  234)
+    license_plate: 43%	(left_x:   27   top_y:  776   width:  125   height:  146)
+    license_plate: 39%	(left_x:   29   top_y:  771   width:  213   height:  172)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/321ffb38656f7311.jpg: Predicted in 67.740000 milli-seconds.
+    license_plate: 49%	(left_x:  169   top_y:  431   width:   31   height:    9)
+    license_plate: 26%	(left_x:  170   top_y:  455   width:   29   height:   17)
+    license_plate: 45%	(left_x:  466   top_y:  437   width:   72   height:   24)
+    license_plate: 50%	(left_x:  622   top_y:  503   width:  128   height:   30)
+    license_plate: 69%	(left_x:  646   top_y:  490   width:   71   height:   50)
+    license_plate: 32%	(left_x:  804   top_y:  416   width:  101   height:   41)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/33e0333ff031c4fb.jpg: Predicted in 67.500000 milli-seconds.
+    license_plate: 58%	(left_x:  756   top_y:  672   width:  103   height:  109)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/0f4bfc46402a9f52.jpg: Predicted in 67.282000 milli-seconds.
+    license_plate: 42%	(left_x:  516   top_y:  283   width:  299   height:  295)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/f6256bceaf66693f.jpg: Predicted in 67.713000 milli-seconds.
+    license_plate: 51%	(left_x:  520   top_y:  566   width:  157   height:   84)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/0727983dd5f9e4e6.jpg: Predicted in 67.509000 milli-seconds.
+    license_plate: 47%	(left_x:  471   top_y:  587   width:  212   height:   98)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/12d3b6665f7e1cf6.jpg: Predicted in 67.657000 milli-seconds.
+    license_plate: 47%	(left_x:    1   top_y:  358   width:   73   height:   50)
+    license_plate: 64%	(left_x:   16   top_y:  329   width:   56   height:  100)
+    Enter Image Path:  Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    data/test/c91ee912164d8ecb.jpg: Predicted in 67.583000 milli-seconds.
+    license_plate: 29%	(left_x:  389   top_y:  314   width:  287   height:   69)
+    Enter Image Path: 
+
+# Metrics
+**Use -map flag while training for charts**  
+mAP-chart (red-line) and Loss-chart (blue-line) will be saved in root directory.  
+mAP will be calculated for each 4 Epochs ~ 240 batches
+
+**I lost my chart due to intruption, but the records are available in training outputs**
+
+## Comparing the weights on validation set
+
+## for yolov4-obj_last.weights (600 iterations) ~ 2hours
+
+
+```python
+!./darknet detector map data/obj.data cfg/yolov4-obj.cfg backup/yolov4-obj_last.weights
+```
+
+     CUDA-version: 11010 (11020), cuDNN: 7.6.5, CUDNN_HALF=1, GPU count: 1  
+     CUDNN_HALF=1 
+     OpenCV version: 3.2.0
+     0 : compute_capability = 370, cudnn_half = 0, GPU: Tesla K80 
+    net.optimized_memory = 0 
+    mini_batch = 1, batch = 1, time_steps = 1, train = 0 
+       layer   filters  size/strd(dil)      input                output
+       0 Create CUDA-stream - 0 
+     Create cudnn-handle 0 
+    conv     32       3 x 3/ 1    416 x 416 x   3 ->  416 x 416 x  32 0.299 BF
+       1 conv     64       3 x 3/ 2    416 x 416 x  32 ->  208 x 208 x  64 1.595 BF
+       2 conv     64       1 x 1/ 1    208 x 208 x  64 ->  208 x 208 x  64 0.354 BF
+       3 route  1 		                           ->  208 x 208 x  64 
+       4 conv     64       1 x 1/ 1    208 x 208 x  64 ->  208 x 208 x  64 0.354 BF
+       5 conv     32       1 x 1/ 1    208 x 208 x  64 ->  208 x 208 x  32 0.177 BF
+       6 conv     64       3 x 3/ 1    208 x 208 x  32 ->  208 x 208 x  64 1.595 BF
+       7 Shortcut Layer: 4,  wt = 0, wn = 0, outputs: 208 x 208 x  64 0.003 BF
+       8 conv     64       1 x 1/ 1    208 x 208 x  64 ->  208 x 208 x  64 0.354 BF
+       9 route  8 2 	                           ->  208 x 208 x 128 
+      10 conv     64       1 x 1/ 1    208 x 208 x 128 ->  208 x 208 x  64 0.709 BF
+      11 conv    128       3 x 3/ 2    208 x 208 x  64 ->  104 x 104 x 128 1.595 BF
+      12 conv     64       1 x 1/ 1    104 x 104 x 128 ->  104 x 104 x  64 0.177 BF
+      13 route  11 		                           ->  104 x 104 x 128 
+      14 conv     64       1 x 1/ 1    104 x 104 x 128 ->  104 x 104 x  64 0.177 BF
+      15 conv     64       1 x 1/ 1    104 x 104 x  64 ->  104 x 104 x  64 0.089 BF
+      16 conv     64       3 x 3/ 1    104 x 104 x  64 ->  104 x 104 x  64 0.797 BF
+      17 Shortcut Layer: 14,  wt = 0, wn = 0, outputs: 104 x 104 x  64 0.001 BF
+      18 conv     64       1 x 1/ 1    104 x 104 x  64 ->  104 x 104 x  64 0.089 BF
+      19 conv     64       3 x 3/ 1    104 x 104 x  64 ->  104 x 104 x  64 0.797 BF
+      20 Shortcut Layer: 17,  wt = 0, wn = 0, outputs: 104 x 104 x  64 0.001 BF
+      21 conv     64       1 x 1/ 1    104 x 104 x  64 ->  104 x 104 x  64 0.089 BF
+      22 route  21 12 	                           ->  104 x 104 x 128 
+      23 conv    128       1 x 1/ 1    104 x 104 x 128 ->  104 x 104 x 128 0.354 BF
+      24 conv    256       3 x 3/ 2    104 x 104 x 128 ->   52 x  52 x 256 1.595 BF
+      25 conv    128       1 x 1/ 1     52 x  52 x 256 ->   52 x  52 x 128 0.177 BF
+      26 route  24 		                           ->   52 x  52 x 256 
+      27 conv    128       1 x 1/ 1     52 x  52 x 256 ->   52 x  52 x 128 0.177 BF
+      28 conv    128       1 x 1/ 1     52 x  52 x 128 ->   52 x  52 x 128 0.089 BF
+      29 conv    128       3 x 3/ 1     52 x  52 x 128 ->   52 x  52 x 128 0.797 BF
+      30 Shortcut Layer: 27,  wt = 0, wn = 0, outputs:  52 x  52 x 128 0.000 BF
+      31 conv    128       1 x 1/ 1     52 x  52 x 128 ->   52 x  52 x 128 0.089 BF
+      32 conv    128       3 x 3/ 1     52 x  52 x 128 ->   52 x  52 x 128 0.797 BF
+      33 Shortcut Layer: 30,  wt = 0, wn = 0, outputs:  52 x  52 x 128 0.000 BF
+      34 conv    128       1 x 1/ 1     52 x  52 x 128 ->   52 x  52 x 128 0.089 BF
+      35 conv    128       3 x 3/ 1     52 x  52 x 128 ->   52 x  52 x 128 0.797 BF
+      36 Shortcut Layer: 33,  wt = 0, wn = 0, outputs:  52 x  52 x 128 0.000 BF
+      37 conv    128       1 x 1/ 1     52 x  52 x 128 ->   52 x  52 x 128 0.089 BF
+      38 conv    128       3 x 3/ 1     52 x  52 x 128 ->   52 x  52 x 128 0.797 BF
+      39 Shortcut Layer: 36,  wt = 0, wn = 0, outputs:  52 x  52 x 128 0.000 BF
+      40 conv    128       1 x 1/ 1     52 x  52 x 128 ->   52 x  52 x 128 0.089 BF
+      41 conv    128       3 x 3/ 1     52 x  52 x 128 ->   52 x  52 x 128 0.797 BF
+      42 Shortcut Layer: 39,  wt = 0, wn = 0, outputs:  52 x  52 x 128 0.000 BF
+      43 conv    128       1 x 1/ 1     52 x  52 x 128 ->   52 x  52 x 128 0.089 BF
+      44 conv    128       3 x 3/ 1     52 x  52 x 128 ->   52 x  52 x 128 0.797 BF
+      45 Shortcut Layer: 42,  wt = 0, wn = 0, outputs:  52 x  52 x 128 0.000 BF
+      46 conv    128       1 x 1/ 1     52 x  52 x 128 ->   52 x  52 x 128 0.089 BF
+      47 conv    128       3 x 3/ 1     52 x  52 x 128 ->   52 x  52 x 128 0.797 BF
+      48 Shortcut Layer: 45,  wt = 0, wn = 0, outputs:  52 x  52 x 128 0.000 BF
+      49 conv    128       1 x 1/ 1     52 x  52 x 128 ->   52 x  52 x 128 0.089 BF
+      50 conv    128       3 x 3/ 1     52 x  52 x 128 ->   52 x  52 x 128 0.797 BF
+      51 Shortcut Layer: 48,  wt = 0, wn = 0, outputs:  52 x  52 x 128 0.000 BF
+      52 conv    128       1 x 1/ 1     52 x  52 x 128 ->   52 x  52 x 128 0.089 BF
+      53 route  52 25 	                           ->   52 x  52 x 256 
+      54 conv    256       1 x 1/ 1     52 x  52 x 256 ->   52 x  52 x 256 0.354 BF
+      55 conv    512       3 x 3/ 2     52 x  52 x 256 ->   26 x  26 x 512 1.595 BF
+      56 conv    256       1 x 1/ 1     26 x  26 x 512 ->   26 x  26 x 256 0.177 BF
+      57 route  55 		                           ->   26 x  26 x 512 
+      58 conv    256       1 x 1/ 1     26 x  26 x 512 ->   26 x  26 x 256 0.177 BF
+      59 conv    256       1 x 1/ 1     26 x  26 x 256 ->   26 x  26 x 256 0.089 BF
+      60 conv    256       3 x 3/ 1     26 x  26 x 256 ->   26 x  26 x 256 0.797 BF
+      61 Shortcut Layer: 58,  wt = 0, wn = 0, outputs:  26 x  26 x 256 0.000 BF
+      62 conv    256       1 x 1/ 1     26 x  26 x 256 ->   26 x  26 x 256 0.089 BF
+      63 conv    256       3 x 3/ 1     26 x  26 x 256 ->   26 x  26 x 256 0.797 BF
+      64 Shortcut Layer: 61,  wt = 0, wn = 0, outputs:  26 x  26 x 256 0.000 BF
+      65 conv    256       1 x 1/ 1     26 x  26 x 256 ->   26 x  26 x 256 0.089 BF
+      66 conv    256       3 x 3/ 1     26 x  26 x 256 ->   26 x  26 x 256 0.797 BF
+      67 Shortcut Layer: 64,  wt = 0, wn = 0, outputs:  26 x  26 x 256 0.000 BF
+      68 conv    256       1 x 1/ 1     26 x  26 x 256 ->   26 x  26 x 256 0.089 BF
+      69 conv    256       3 x 3/ 1     26 x  26 x 256 ->   26 x  26 x 256 0.797 BF
+      70 Shortcut Layer: 67,  wt = 0, wn = 0, outputs:  26 x  26 x 256 0.000 BF
+      71 conv    256       1 x 1/ 1     26 x  26 x 256 ->   26 x  26 x 256 0.089 BF
+      72 conv    256       3 x 3/ 1     26 x  26 x 256 ->   26 x  26 x 256 0.797 BF
+      73 Shortcut Layer: 70,  wt = 0, wn = 0, outputs:  26 x  26 x 256 0.000 BF
+      74 conv    256       1 x 1/ 1     26 x  26 x 256 ->   26 x  26 x 256 0.089 BF
+      75 conv    256       3 x 3/ 1     26 x  26 x 256 ->   26 x  26 x 256 0.797 BF
+      76 Shortcut Layer: 73,  wt = 0, wn = 0, outputs:  26 x  26 x 256 0.000 BF
+      77 conv    256       1 x 1/ 1     26 x  26 x 256 ->   26 x  26 x 256 0.089 BF
+      78 conv    256       3 x 3/ 1     26 x  26 x 256 ->   26 x  26 x 256 0.797 BF
+      79 Shortcut Layer: 76,  wt = 0, wn = 0, outputs:  26 x  26 x 256 0.000 BF
+      80 conv    256       1 x 1/ 1     26 x  26 x 256 ->   26 x  26 x 256 0.089 BF
+      81 conv    256       3 x 3/ 1     26 x  26 x 256 ->   26 x  26 x 256 0.797 BF
+      82 Shortcut Layer: 79,  wt = 0, wn = 0, outputs:  26 x  26 x 256 0.000 BF
+      83 conv    256       1 x 1/ 1     26 x  26 x 256 ->   26 x  26 x 256 0.089 BF
+      84 route  83 56 	                           ->   26 x  26 x 512 
+      85 conv    512       1 x 1/ 1     26 x  26 x 512 ->   26 x  26 x 512 0.354 BF
+      86 conv   1024       3 x 3/ 2     26 x  26 x 512 ->   13 x  13 x1024 1.595 BF
+      87 conv    512       1 x 1/ 1     13 x  13 x1024 ->   13 x  13 x 512 0.177 BF
+      88 route  86 		                           ->   13 x  13 x1024 
+      89 conv    512       1 x 1/ 1     13 x  13 x1024 ->   13 x  13 x 512 0.177 BF
+      90 conv    512       1 x 1/ 1     13 x  13 x 512 ->   13 x  13 x 512 0.089 BF
+      91 conv    512       3 x 3/ 1     13 x  13 x 512 ->   13 x  13 x 512 0.797 BF
+      92 Shortcut Layer: 89,  wt = 0, wn = 0, outputs:  13 x  13 x 512 0.000 BF
+      93 conv    512       1 x 1/ 1     13 x  13 x 512 ->   13 x  13 x 512 0.089 BF
+      94 conv    512       3 x 3/ 1     13 x  13 x 512 ->   13 x  13 x 512 0.797 BF
+      95 Shortcut Layer: 92,  wt = 0, wn = 0, outputs:  13 x  13 x 512 0.000 BF
+      96 conv    512       1 x 1/ 1     13 x  13 x 512 ->   13 x  13 x 512 0.089 BF
+      97 conv    512       3 x 3/ 1     13 x  13 x 512 ->   13 x  13 x 512 0.797 BF
+      98 Shortcut Layer: 95,  wt = 0, wn = 0, outputs:  13 x  13 x 512 0.000 BF
+      99 conv    512       1 x 1/ 1     13 x  13 x 512 ->   13 x  13 x 512 0.089 BF
+     100 conv    512       3 x 3/ 1     13 x  13 x 512 ->   13 x  13 x 512 0.797 BF
+     101 Shortcut Layer: 98,  wt = 0, wn = 0, outputs:  13 x  13 x 512 0.000 BF
+     102 conv    512       1 x 1/ 1     13 x  13 x 512 ->   13 x  13 x 512 0.089 BF
+     103 route  102 87 	                           ->   13 x  13 x1024 
+     104 conv   1024       1 x 1/ 1     13 x  13 x1024 ->   13 x  13 x1024 0.354 BF
+     105 conv    512       1 x 1/ 1     13 x  13 x1024 ->   13 x  13 x 512 0.177 BF
+     106 conv   1024       3 x 3/ 1     13 x  13 x 512 ->   13 x  13 x1024 1.595 BF
+     107 conv    512       1 x 1/ 1     13 x  13 x1024 ->   13 x  13 x 512 0.177 BF
+     108 max                5x 5/ 1     13 x  13 x 512 ->   13 x  13 x 512 0.002 BF
+     109 route  107 		                           ->   13 x  13 x 512 
+     110 max                9x 9/ 1     13 x  13 x 512 ->   13 x  13 x 512 0.007 BF
+     111 route  107 		                           ->   13 x  13 x 512 
+     112 max               13x13/ 1     13 x  13 x 512 ->   13 x  13 x 512 0.015 BF
+     113 route  112 110 108 107 	                   ->   13 x  13 x2048 
+     114 conv    512       1 x 1/ 1     13 x  13 x2048 ->   13 x  13 x 512 0.354 BF
+     115 conv   1024       3 x 3/ 1     13 x  13 x 512 ->   13 x  13 x1024 1.595 BF
+     116 conv    512       1 x 1/ 1     13 x  13 x1024 ->   13 x  13 x 512 0.177 BF
+     117 conv    256       1 x 1/ 1     13 x  13 x 512 ->   13 x  13 x 256 0.044 BF
+     118 upsample                 2x    13 x  13 x 256 ->   26 x  26 x 256
+     119 route  85 		                           ->   26 x  26 x 512 
+     120 conv    256       1 x 1/ 1     26 x  26 x 512 ->   26 x  26 x 256 0.177 BF
+     121 route  120 118 	                           ->   26 x  26 x 512 
+     122 conv    256       1 x 1/ 1     26 x  26 x 512 ->   26 x  26 x 256 0.177 BF
+     123 conv    512       3 x 3/ 1     26 x  26 x 256 ->   26 x  26 x 512 1.595 BF
+     124 conv    256       1 x 1/ 1     26 x  26 x 512 ->   26 x  26 x 256 0.177 BF
+     125 conv    512       3 x 3/ 1     26 x  26 x 256 ->   26 x  26 x 512 1.595 BF
+     126 conv    256       1 x 1/ 1     26 x  26 x 512 ->   26 x  26 x 256 0.177 BF
+     127 conv    128       1 x 1/ 1     26 x  26 x 256 ->   26 x  26 x 128 0.044 BF
+     128 upsample                 2x    26 x  26 x 128 ->   52 x  52 x 128
+     129 route  54 		                           ->   52 x  52 x 256 
+     130 conv    128       1 x 1/ 1     52 x  52 x 256 ->   52 x  52 x 128 0.177 BF
+     131 route  130 128 	                           ->   52 x  52 x 256 
+     132 conv    128       1 x 1/ 1     52 x  52 x 256 ->   52 x  52 x 128 0.177 BF
+     133 conv    256       3 x 3/ 1     52 x  52 x 128 ->   52 x  52 x 256 1.595 BF
+     134 conv    128       1 x 1/ 1     52 x  52 x 256 ->   52 x  52 x 128 0.177 BF
+     135 conv    256       3 x 3/ 1     52 x  52 x 128 ->   52 x  52 x 256 1.595 BF
+     136 conv    128       1 x 1/ 1     52 x  52 x 256 ->   52 x  52 x 128 0.177 BF
+     137 conv    256       3 x 3/ 1     52 x  52 x 128 ->   52 x  52 x 256 1.595 BF
+     138 conv     18       1 x 1/ 1     52 x  52 x 256 ->   52 x  52 x  18 0.025 BF
+     139 yolo
+    [yolo] params: iou loss: ciou (4), iou_norm: 0.07, obj_norm: 1.00, cls_norm: 1.00, delta_norm: 1.00, scale_x_y: 1.20
+    nms_kind: greedynms (1), beta = 0.600000 
+     140 route  136 		                           ->   52 x  52 x 128 
+     141 conv    256       3 x 3/ 2     52 x  52 x 128 ->   26 x  26 x 256 0.399 BF
+     142 route  141 126 	                           ->   26 x  26 x 512 
+     143 conv    256       1 x 1/ 1     26 x  26 x 512 ->   26 x  26 x 256 0.177 BF
+     144 conv    512       3 x 3/ 1     26 x  26 x 256 ->   26 x  26 x 512 1.595 BF
+     145 conv    256       1 x 1/ 1     26 x  26 x 512 ->   26 x  26 x 256 0.177 BF
+     146 conv    512       3 x 3/ 1     26 x  26 x 256 ->   26 x  26 x 512 1.595 BF
+     147 conv    256       1 x 1/ 1     26 x  26 x 512 ->   26 x  26 x 256 0.177 BF
+     148 conv    512       3 x 3/ 1     26 x  26 x 256 ->   26 x  26 x 512 1.595 BF
+     149 conv     18       1 x 1/ 1     26 x  26 x 512 ->   26 x  26 x  18 0.012 BF
+     150 yolo
+    [yolo] params: iou loss: ciou (4), iou_norm: 0.07, obj_norm: 1.00, cls_norm: 1.00, delta_norm: 1.00, scale_x_y: 1.10
+    nms_kind: greedynms (1), beta = 0.600000 
+     151 route  147 		                           ->   26 x  26 x 256 
+     152 conv    512       3 x 3/ 2     26 x  26 x 256 ->   13 x  13 x 512 0.399 BF
+     153 route  152 116 	                           ->   13 x  13 x1024 
+     154 conv    512       1 x 1/ 1     13 x  13 x1024 ->   13 x  13 x 512 0.177 BF
+     155 conv   1024       3 x 3/ 1     13 x  13 x 512 ->   13 x  13 x1024 1.595 BF
+     156 conv    512       1 x 1/ 1     13 x  13 x1024 ->   13 x  13 x 512 0.177 BF
+     157 conv   1024       3 x 3/ 1     13 x  13 x 512 ->   13 x  13 x1024 1.595 BF
+     158 conv    512       1 x 1/ 1     13 x  13 x1024 ->   13 x  13 x 512 0.177 BF
+     159 conv   1024       3 x 3/ 1     13 x  13 x 512 ->   13 x  13 x1024 1.595 BF
+     160 conv     18       1 x 1/ 1     13 x  13 x1024 ->   13 x  13 x  18 0.006 BF
+     161 yolo
+    [yolo] params: iou loss: ciou (4), iou_norm: 0.07, obj_norm: 1.00, cls_norm: 1.00, delta_norm: 1.00, scale_x_y: 1.05
+    nms_kind: greedynms (1), beta = 0.600000 
+    Total BFLOPS 59.563 
+    avg_outputs = 489778 
+     Allocate additional workspace_size = 12.46 MB 
+    Loading weights from backup/yolov4-obj_last.weights...
+     seen 64, trained: 38 K-images (0 Kilo-batches_64) 
+    Done! Loaded 162 layers from weights-file 
+    
+     calculation mAP (mean average precision)...
+     Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    388
+     detections_count = 12327, unique_truth_count = 512  
+    class_id = 0, name = license_plate, ap = 46.27%   	 (TP = 311, FP = 313) 
+    
+     for conf_thresh = 0.25, precision = 0.50, recall = 0.61, F1-score = 0.55 
+     for conf_thresh = 0.25, TP = 311, FP = 313, FN = 201, average IoU = 33.41 % 
+    
+     IoU threshold = 50 %, used Area-Under-Curve for each unique Recall 
+     mean average precision (mAP@0.50) = 0.462668, or 46.27 % 
+    Total Detection Time: 209 Seconds
+    
+    Set -points flag:
+     `-points 101` for MS COCO 
+     `-points 11` for PascalVOC 2007 (uncomment `difficult` in voc.data) 
+     `-points 0` (AUC) for ImageNet, PascalVOC 2010-2012, your custom dataset
+    
+
+*   Precision: 50 %
+*   Average Precision: 46.27 %
+*   Recall: 61 %
+*   F1-score: 55 %
+*   Average IoU: 33.41 %
+*   mAP@0.5: 46.27 %
+*   Confusion Matrix:
+    *   TP = 311
+    *   FP = 313
+    *   FN = 201
+    *   unique_truth_count (TP+FN) = 512
+    *   detections_count = 12327
+
+
+
+
+
+### For best-weight.weights ~ 16hours
+
+
+```python
+!./darknet detector map data/obj.data cfg/yolov4-obj.cfg backup/custom.weights
+```
+
+     CUDA-version: 11010 (11020), cuDNN: 7.6.5, CUDNN_HALF=1, GPU count: 1  
+     CUDNN_HALF=1 
+     OpenCV version: 3.2.0
+     0 : compute_capability = 370, cudnn_half = 0, GPU: Tesla K80 
+    net.optimized_memory = 0 
+    mini_batch = 1, batch = 1, time_steps = 1, train = 0 
+       layer   filters  size/strd(dil)      input                output
+       0 Create CUDA-stream - 0 
+     Create cudnn-handle 0 
+    conv     32       3 x 3/ 1    416 x 416 x   3 ->  416 x 416 x  32 0.299 BF
+       1 conv     64       3 x 3/ 2    416 x 416 x  32 ->  208 x 208 x  64 1.595 BF
+       2 conv     64       1 x 1/ 1    208 x 208 x  64 ->  208 x 208 x  64 0.354 BF
+       3 route  1 		                           ->  208 x 208 x  64 
+       4 conv     64       1 x 1/ 1    208 x 208 x  64 ->  208 x 208 x  64 0.354 BF
+       5 conv     32       1 x 1/ 1    208 x 208 x  64 ->  208 x 208 x  32 0.177 BF
+       6 conv     64       3 x 3/ 1    208 x 208 x  32 ->  208 x 208 x  64 1.595 BF
+       7 Shortcut Layer: 4,  wt = 0, wn = 0, outputs: 208 x 208 x  64 0.003 BF
+       8 conv     64       1 x 1/ 1    208 x 208 x  64 ->  208 x 208 x  64 0.354 BF
+       9 route  8 2 	                           ->  208 x 208 x 128 
+      10 conv     64       1 x 1/ 1    208 x 208 x 128 ->  208 x 208 x  64 0.709 BF
+      11 conv    128       3 x 3/ 2    208 x 208 x  64 ->  104 x 104 x 128 1.595 BF
+      12 conv     64       1 x 1/ 1    104 x 104 x 128 ->  104 x 104 x  64 0.177 BF
+      13 route  11 		                           ->  104 x 104 x 128 
+      14 conv     64       1 x 1/ 1    104 x 104 x 128 ->  104 x 104 x  64 0.177 BF
+      15 conv     64       1 x 1/ 1    104 x 104 x  64 ->  104 x 104 x  64 0.089 BF
+      16 conv     64       3 x 3/ 1    104 x 104 x  64 ->  104 x 104 x  64 0.797 BF
+      17 Shortcut Layer: 14,  wt = 0, wn = 0, outputs: 104 x 104 x  64 0.001 BF
+      18 conv     64       1 x 1/ 1    104 x 104 x  64 ->  104 x 104 x  64 0.089 BF
+      19 conv     64       3 x 3/ 1    104 x 104 x  64 ->  104 x 104 x  64 0.797 BF
+      20 Shortcut Layer: 17,  wt = 0, wn = 0, outputs: 104 x 104 x  64 0.001 BF
+      21 conv     64       1 x 1/ 1    104 x 104 x  64 ->  104 x 104 x  64 0.089 BF
+      22 route  21 12 	                           ->  104 x 104 x 128 
+      23 conv    128       1 x 1/ 1    104 x 104 x 128 ->  104 x 104 x 128 0.354 BF
+      24 conv    256       3 x 3/ 2    104 x 104 x 128 ->   52 x  52 x 256 1.595 BF
+      25 conv    128       1 x 1/ 1     52 x  52 x 256 ->   52 x  52 x 128 0.177 BF
+      26 route  24 		                           ->   52 x  52 x 256 
+      27 conv    128       1 x 1/ 1     52 x  52 x 256 ->   52 x  52 x 128 0.177 BF
+      28 conv    128       1 x 1/ 1     52 x  52 x 128 ->   52 x  52 x 128 0.089 BF
+      29 conv    128       3 x 3/ 1     52 x  52 x 128 ->   52 x  52 x 128 0.797 BF
+      30 Shortcut Layer: 27,  wt = 0, wn = 0, outputs:  52 x  52 x 128 0.000 BF
+      31 conv    128       1 x 1/ 1     52 x  52 x 128 ->   52 x  52 x 128 0.089 BF
+      32 conv    128       3 x 3/ 1     52 x  52 x 128 ->   52 x  52 x 128 0.797 BF
+      33 Shortcut Layer: 30,  wt = 0, wn = 0, outputs:  52 x  52 x 128 0.000 BF
+      34 conv    128       1 x 1/ 1     52 x  52 x 128 ->   52 x  52 x 128 0.089 BF
+      35 conv    128       3 x 3/ 1     52 x  52 x 128 ->   52 x  52 x 128 0.797 BF
+      36 Shortcut Layer: 33,  wt = 0, wn = 0, outputs:  52 x  52 x 128 0.000 BF
+      37 conv    128       1 x 1/ 1     52 x  52 x 128 ->   52 x  52 x 128 0.089 BF
+      38 conv    128       3 x 3/ 1     52 x  52 x 128 ->   52 x  52 x 128 0.797 BF
+      39 Shortcut Layer: 36,  wt = 0, wn = 0, outputs:  52 x  52 x 128 0.000 BF
+      40 conv    128       1 x 1/ 1     52 x  52 x 128 ->   52 x  52 x 128 0.089 BF
+      41 conv    128       3 x 3/ 1     52 x  52 x 128 ->   52 x  52 x 128 0.797 BF
+      42 Shortcut Layer: 39,  wt = 0, wn = 0, outputs:  52 x  52 x 128 0.000 BF
+      43 conv    128       1 x 1/ 1     52 x  52 x 128 ->   52 x  52 x 128 0.089 BF
+      44 conv    128       3 x 3/ 1     52 x  52 x 128 ->   52 x  52 x 128 0.797 BF
+      45 Shortcut Layer: 42,  wt = 0, wn = 0, outputs:  52 x  52 x 128 0.000 BF
+      46 conv    128       1 x 1/ 1     52 x  52 x 128 ->   52 x  52 x 128 0.089 BF
+      47 conv    128       3 x 3/ 1     52 x  52 x 128 ->   52 x  52 x 128 0.797 BF
+      48 Shortcut Layer: 45,  wt = 0, wn = 0, outputs:  52 x  52 x 128 0.000 BF
+      49 conv    128       1 x 1/ 1     52 x  52 x 128 ->   52 x  52 x 128 0.089 BF
+      50 conv    128       3 x 3/ 1     52 x  52 x 128 ->   52 x  52 x 128 0.797 BF
+      51 Shortcut Layer: 48,  wt = 0, wn = 0, outputs:  52 x  52 x 128 0.000 BF
+      52 conv    128       1 x 1/ 1     52 x  52 x 128 ->   52 x  52 x 128 0.089 BF
+      53 route  52 25 	                           ->   52 x  52 x 256 
+      54 conv    256       1 x 1/ 1     52 x  52 x 256 ->   52 x  52 x 256 0.354 BF
+      55 conv    512       3 x 3/ 2     52 x  52 x 256 ->   26 x  26 x 512 1.595 BF
+      56 conv    256       1 x 1/ 1     26 x  26 x 512 ->   26 x  26 x 256 0.177 BF
+      57 route  55 		                           ->   26 x  26 x 512 
+      58 conv    256       1 x 1/ 1     26 x  26 x 512 ->   26 x  26 x 256 0.177 BF
+      59 conv    256       1 x 1/ 1     26 x  26 x 256 ->   26 x  26 x 256 0.089 BF
+      60 conv    256       3 x 3/ 1     26 x  26 x 256 ->   26 x  26 x 256 0.797 BF
+      61 Shortcut Layer: 58,  wt = 0, wn = 0, outputs:  26 x  26 x 256 0.000 BF
+      62 conv    256       1 x 1/ 1     26 x  26 x 256 ->   26 x  26 x 256 0.089 BF
+      63 conv    256       3 x 3/ 1     26 x  26 x 256 ->   26 x  26 x 256 0.797 BF
+      64 Shortcut Layer: 61,  wt = 0, wn = 0, outputs:  26 x  26 x 256 0.000 BF
+      65 conv    256       1 x 1/ 1     26 x  26 x 256 ->   26 x  26 x 256 0.089 BF
+      66 conv    256       3 x 3/ 1     26 x  26 x 256 ->   26 x  26 x 256 0.797 BF
+      67 Shortcut Layer: 64,  wt = 0, wn = 0, outputs:  26 x  26 x 256 0.000 BF
+      68 conv    256       1 x 1/ 1     26 x  26 x 256 ->   26 x  26 x 256 0.089 BF
+      69 conv    256       3 x 3/ 1     26 x  26 x 256 ->   26 x  26 x 256 0.797 BF
+      70 Shortcut Layer: 67,  wt = 0, wn = 0, outputs:  26 x  26 x 256 0.000 BF
+      71 conv    256       1 x 1/ 1     26 x  26 x 256 ->   26 x  26 x 256 0.089 BF
+      72 conv    256       3 x 3/ 1     26 x  26 x 256 ->   26 x  26 x 256 0.797 BF
+      73 Shortcut Layer: 70,  wt = 0, wn = 0, outputs:  26 x  26 x 256 0.000 BF
+      74 conv    256       1 x 1/ 1     26 x  26 x 256 ->   26 x  26 x 256 0.089 BF
+      75 conv    256       3 x 3/ 1     26 x  26 x 256 ->   26 x  26 x 256 0.797 BF
+      76 Shortcut Layer: 73,  wt = 0, wn = 0, outputs:  26 x  26 x 256 0.000 BF
+      77 conv    256       1 x 1/ 1     26 x  26 x 256 ->   26 x  26 x 256 0.089 BF
+      78 conv    256       3 x 3/ 1     26 x  26 x 256 ->   26 x  26 x 256 0.797 BF
+      79 Shortcut Layer: 76,  wt = 0, wn = 0, outputs:  26 x  26 x 256 0.000 BF
+      80 conv    256       1 x 1/ 1     26 x  26 x 256 ->   26 x  26 x 256 0.089 BF
+      81 conv    256       3 x 3/ 1     26 x  26 x 256 ->   26 x  26 x 256 0.797 BF
+      82 Shortcut Layer: 79,  wt = 0, wn = 0, outputs:  26 x  26 x 256 0.000 BF
+      83 conv    256       1 x 1/ 1     26 x  26 x 256 ->   26 x  26 x 256 0.089 BF
+      84 route  83 56 	                           ->   26 x  26 x 512 
+      85 conv    512       1 x 1/ 1     26 x  26 x 512 ->   26 x  26 x 512 0.354 BF
+      86 conv   1024       3 x 3/ 2     26 x  26 x 512 ->   13 x  13 x1024 1.595 BF
+      87 conv    512       1 x 1/ 1     13 x  13 x1024 ->   13 x  13 x 512 0.177 BF
+      88 route  86 		                           ->   13 x  13 x1024 
+      89 conv    512       1 x 1/ 1     13 x  13 x1024 ->   13 x  13 x 512 0.177 BF
+      90 conv    512       1 x 1/ 1     13 x  13 x 512 ->   13 x  13 x 512 0.089 BF
+      91 conv    512       3 x 3/ 1     13 x  13 x 512 ->   13 x  13 x 512 0.797 BF
+      92 Shortcut Layer: 89,  wt = 0, wn = 0, outputs:  13 x  13 x 512 0.000 BF
+      93 conv    512       1 x 1/ 1     13 x  13 x 512 ->   13 x  13 x 512 0.089 BF
+      94 conv    512       3 x 3/ 1     13 x  13 x 512 ->   13 x  13 x 512 0.797 BF
+      95 Shortcut Layer: 92,  wt = 0, wn = 0, outputs:  13 x  13 x 512 0.000 BF
+      96 conv    512       1 x 1/ 1     13 x  13 x 512 ->   13 x  13 x 512 0.089 BF
+      97 conv    512       3 x 3/ 1     13 x  13 x 512 ->   13 x  13 x 512 0.797 BF
+      98 Shortcut Layer: 95,  wt = 0, wn = 0, outputs:  13 x  13 x 512 0.000 BF
+      99 conv    512       1 x 1/ 1     13 x  13 x 512 ->   13 x  13 x 512 0.089 BF
+     100 conv    512       3 x 3/ 1     13 x  13 x 512 ->   13 x  13 x 512 0.797 BF
+     101 Shortcut Layer: 98,  wt = 0, wn = 0, outputs:  13 x  13 x 512 0.000 BF
+     102 conv    512       1 x 1/ 1     13 x  13 x 512 ->   13 x  13 x 512 0.089 BF
+     103 route  102 87 	                           ->   13 x  13 x1024 
+     104 conv   1024       1 x 1/ 1     13 x  13 x1024 ->   13 x  13 x1024 0.354 BF
+     105 conv    512       1 x 1/ 1     13 x  13 x1024 ->   13 x  13 x 512 0.177 BF
+     106 conv   1024       3 x 3/ 1     13 x  13 x 512 ->   13 x  13 x1024 1.595 BF
+     107 conv    512       1 x 1/ 1     13 x  13 x1024 ->   13 x  13 x 512 0.177 BF
+     108 max                5x 5/ 1     13 x  13 x 512 ->   13 x  13 x 512 0.002 BF
+     109 route  107 		                           ->   13 x  13 x 512 
+     110 max                9x 9/ 1     13 x  13 x 512 ->   13 x  13 x 512 0.007 BF
+     111 route  107 		                           ->   13 x  13 x 512 
+     112 max               13x13/ 1     13 x  13 x 512 ->   13 x  13 x 512 0.015 BF
+     113 route  112 110 108 107 	                   ->   13 x  13 x2048 
+     114 conv    512       1 x 1/ 1     13 x  13 x2048 ->   13 x  13 x 512 0.354 BF
+     115 conv   1024       3 x 3/ 1     13 x  13 x 512 ->   13 x  13 x1024 1.595 BF
+     116 conv    512       1 x 1/ 1     13 x  13 x1024 ->   13 x  13 x 512 0.177 BF
+     117 conv    256       1 x 1/ 1     13 x  13 x 512 ->   13 x  13 x 256 0.044 BF
+     118 upsample                 2x    13 x  13 x 256 ->   26 x  26 x 256
+     119 route  85 		                           ->   26 x  26 x 512 
+     120 conv    256       1 x 1/ 1     26 x  26 x 512 ->   26 x  26 x 256 0.177 BF
+     121 route  120 118 	                           ->   26 x  26 x 512 
+     122 conv    256       1 x 1/ 1     26 x  26 x 512 ->   26 x  26 x 256 0.177 BF
+     123 conv    512       3 x 3/ 1     26 x  26 x 256 ->   26 x  26 x 512 1.595 BF
+     124 conv    256       1 x 1/ 1     26 x  26 x 512 ->   26 x  26 x 256 0.177 BF
+     125 conv    512       3 x 3/ 1     26 x  26 x 256 ->   26 x  26 x 512 1.595 BF
+     126 conv    256       1 x 1/ 1     26 x  26 x 512 ->   26 x  26 x 256 0.177 BF
+     127 conv    128       1 x 1/ 1     26 x  26 x 256 ->   26 x  26 x 128 0.044 BF
+     128 upsample                 2x    26 x  26 x 128 ->   52 x  52 x 128
+     129 route  54 		                           ->   52 x  52 x 256 
+     130 conv    128       1 x 1/ 1     52 x  52 x 256 ->   52 x  52 x 128 0.177 BF
+     131 route  130 128 	                           ->   52 x  52 x 256 
+     132 conv    128       1 x 1/ 1     52 x  52 x 256 ->   52 x  52 x 128 0.177 BF
+     133 conv    256       3 x 3/ 1     52 x  52 x 128 ->   52 x  52 x 256 1.595 BF
+     134 conv    128       1 x 1/ 1     52 x  52 x 256 ->   52 x  52 x 128 0.177 BF
+     135 conv    256       3 x 3/ 1     52 x  52 x 128 ->   52 x  52 x 256 1.595 BF
+     136 conv    128       1 x 1/ 1     52 x  52 x 256 ->   52 x  52 x 128 0.177 BF
+     137 conv    256       3 x 3/ 1     52 x  52 x 128 ->   52 x  52 x 256 1.595 BF
+     138 conv     18       1 x 1/ 1     52 x  52 x 256 ->   52 x  52 x  18 0.025 BF
+     139 yolo
+    [yolo] params: iou loss: ciou (4), iou_norm: 0.07, obj_norm: 1.00, cls_norm: 1.00, delta_norm: 1.00, scale_x_y: 1.20
+    nms_kind: greedynms (1), beta = 0.600000 
+     140 route  136 		                           ->   52 x  52 x 128 
+     141 conv    256       3 x 3/ 2     52 x  52 x 128 ->   26 x  26 x 256 0.399 BF
+     142 route  141 126 	                           ->   26 x  26 x 512 
+     143 conv    256       1 x 1/ 1     26 x  26 x 512 ->   26 x  26 x 256 0.177 BF
+     144 conv    512       3 x 3/ 1     26 x  26 x 256 ->   26 x  26 x 512 1.595 BF
+     145 conv    256       1 x 1/ 1     26 x  26 x 512 ->   26 x  26 x 256 0.177 BF
+     146 conv    512       3 x 3/ 1     26 x  26 x 256 ->   26 x  26 x 512 1.595 BF
+     147 conv    256       1 x 1/ 1     26 x  26 x 512 ->   26 x  26 x 256 0.177 BF
+     148 conv    512       3 x 3/ 1     26 x  26 x 256 ->   26 x  26 x 512 1.595 BF
+     149 conv     18       1 x 1/ 1     26 x  26 x 512 ->   26 x  26 x  18 0.012 BF
+     150 yolo
+    [yolo] params: iou loss: ciou (4), iou_norm: 0.07, obj_norm: 1.00, cls_norm: 1.00, delta_norm: 1.00, scale_x_y: 1.10
+    nms_kind: greedynms (1), beta = 0.600000 
+     151 route  147 		                           ->   26 x  26 x 256 
+     152 conv    512       3 x 3/ 2     26 x  26 x 256 ->   13 x  13 x 512 0.399 BF
+     153 route  152 116 	                           ->   13 x  13 x1024 
+     154 conv    512       1 x 1/ 1     13 x  13 x1024 ->   13 x  13 x 512 0.177 BF
+     155 conv   1024       3 x 3/ 1     13 x  13 x 512 ->   13 x  13 x1024 1.595 BF
+     156 conv    512       1 x 1/ 1     13 x  13 x1024 ->   13 x  13 x 512 0.177 BF
+     157 conv   1024       3 x 3/ 1     13 x  13 x 512 ->   13 x  13 x1024 1.595 BF
+     158 conv    512       1 x 1/ 1     13 x  13 x1024 ->   13 x  13 x 512 0.177 BF
+     159 conv   1024       3 x 3/ 1     13 x  13 x 512 ->   13 x  13 x1024 1.595 BF
+     160 conv     18       1 x 1/ 1     13 x  13 x1024 ->   13 x  13 x  18 0.006 BF
+     161 yolo
+    [yolo] params: iou loss: ciou (4), iou_norm: 0.07, obj_norm: 1.00, cls_norm: 1.00, delta_norm: 1.00, scale_x_y: 1.05
+    nms_kind: greedynms (1), beta = 0.600000 
+    Total BFLOPS 59.563 
+    avg_outputs = 489778 
+     Allocate additional workspace_size = 12.46 MB 
+    Loading weights from backup/custom.weights...
+     seen 64, trained: 236 K-images (3 Kilo-batches_64) 
+    Done! Loaded 162 layers from weights-file 
+    
+     calculation mAP (mean average precision)...
+     Detection layer: 139 - type = 28 
+     Detection layer: 150 - type = 28 
+     Detection layer: 161 - type = 28 
+    388
+     detections_count = 805, unique_truth_count = 512  
+    class_id = 0, name = license_plate, ap = 89.80%   	 (TP = 439, FP = 45) 
+    
+     for conf_thresh = 0.25, precision = 0.91, recall = 0.86, F1-score = 0.88 
+     for conf_thresh = 0.25, TP = 439, FP = 45, FN = 73, average IoU = 74.06 % 
+    
+     IoU threshold = 50 %, used Area-Under-Curve for each unique Recall 
+     mean average precision (mAP@0.50) = 0.898026, or 89.80 % 
+    Total Detection Time: 31 Seconds
+    
+    Set -points flag:
+     `-points 101` for MS COCO 
+     `-points 11` for PascalVOC 2007 (uncomment `difficult` in voc.data) 
+     `-points 0` (AUC) for ImageNet, PascalVOC 2010-2012, your custom dataset
+    
+
+*   Precision: 91 %
+*   Average Precision: 89.80 %
+*   Recall: 86 %
+*   F1-score: 88 %
+*   Average IoU: 74.06 %
+*   mAP@0.5: 89.80 %
+*   Confusion Matrix:
+    *   TP = 439
+    *   FP = 45
+    *   FN = 73
+    *   unique_truth_count (TP+FN) = 512
+    *   detections_count = 805
+
+
+# Challenges
+
+## Dataset
+
+
+
+I spent quiet a lot of time for finding a well annotated and large dataset for licence plates, but I didn't succeed.  
+I checked all these:
+
+
+*   [kaggle](https://www.kaggle.com/andrewmvd/car-plate-detection)
+  *   This is a small dataset with 433 images, which I think is not enough for model to converge well.
+
+
+*   https://platerecognizer.com/number-plate-datasets/
+  *   waste of time (none of them are free)
+
+
+*   http://www.zemris.fer.hr/projects/LicensePlates/english/results.shtml
+  *   small
+
+*   http://www.inf.ufrgs.br/~crjung/alpr-datasets/
+*   https://github.com/detectRecog/CCPD
+
+
+
+
+
+## Wrong path!
+
+I spent a lot of time for finding a tensorflow/keras implementation for YOLO. But none of them worked properly.
+
+And running darknet on windows wasn't so simple,
+so I tried to run darknet on colab.
+
+## GPU
+
+Google colab limited my GPU usage.  
+It got slower and slower and slower and I couldn't finish my training.
+
+# Code
+
+
+```python
+!pwd
+```
+
+    /content
+    
+
+
+```python
+%cd drive/MyDrive/darknet
+```
+
+    /content/drive/MyDrive/darknet
+    
+
+
+```python
+
 ```
