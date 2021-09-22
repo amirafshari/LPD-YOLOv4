@@ -34,4 +34,4 @@ jobs:
       uses: ad-m/github-push-action@master
       with:
         branch: main
-        github_token: ${{ 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 }}
+        github_token: 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
