@@ -63,3 +63,4 @@ uselib
 uselib_track
 darknet
 vcpkg/
+.ipynb_checkpoints/README-checkpoint.ipynb
