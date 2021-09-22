@@ -7,7 +7,7 @@ on:
 
 jobs:
   release:
-    if: github.actor == 'amirafshari' && startsWith(github.event.head_commit.message, 'Update README')
+    if: github.actor == 'amirafshari' && startsWith(github.event.head_commit.message, 'Update README.ipynb')
     name: Build
     runs-on: ubuntu-latest
     steps:
