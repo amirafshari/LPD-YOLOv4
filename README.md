@@ -324,8 +324,9 @@ I used the kaggle dataset for this.
 ```python
 imShow('./predictions.jpg')
 ```
-![predictions](https://user-images.githubusercontent.com/17769927/134396377-fb208a3c-fa7b-4616-bec6-db7ded1e07b5.png)
-![1](https://user-images.githubusercontent.com/17769927/134425479-42235ab7-2a4f-4c49-a13c-69b660900360.png)
+![result-4](https://user-images.githubusercontent.com/17769927/134551901-37ff3f6d-37ae-42dc-96c3-8064786355fe.jpg)
+![result-9](https://user-images.githubusercontent.com/17769927/134551913-b4e82155-e5c1-48bd-8b56-3bfdca6acfb2.jpg)
+
 
 **To process a list of images data/train.txt and save results of detection to result.json file use**
 
