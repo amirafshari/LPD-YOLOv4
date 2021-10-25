@@ -46,7 +46,7 @@
 ```
 
 ## Generate train.txt and test.txt
-* These files are not in the official repo, but you can find them in my repository.
+These files are not in the official repo, but you can find them in my repository.
 
 
 ```python
