@@ -133,7 +133,7 @@ def imShow(path):
   plt.show()
 ```
 
-#### Sanity Check on COCO
+#### COCO Dataset
 
 ```python
 !./darknet detector test cfg/coco.data cfg/yolov4.cfg yolov4.weights data/person.jpg
@@ -142,13 +142,12 @@ def imShow(path):
 ```python
 imShow('./predictions.jpg')
 ```
+![download](https://user-images.githubusercontent.com/17769927/138662797-827178bd-ce03-4896-b093-1705c3ac6d4f.png)
 
-#### Run on unseen data
+#### Custom Dataset
 ```python
 !./darknet detector test ./data/obj.data ./cfg/yolov4-obj.cfg ./backup/yolov4-obj_last.weights ../Cars354.png -thresh 0.3
 ```
-![download](https://user-images.githubusercontent.com/17769927/138662797-827178bd-ce03-4896-b093-1705c3ac6d4f.png)
-
 
 ```python
 imShow('./predictions.jpg')
