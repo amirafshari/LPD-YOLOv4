@@ -1,9 +1,8 @@
 # EDA
+How our data looks like?  
+1. Annotations format (YOLO Format): [class, x_center, y_center, obj_width, obj_height]  
+2. Create a DataFrame from annotations to visualize our objects.  
 
-*   Annotations format: [class, x_center, y_center, obj_width, obj_height]
-*   Create a DataFrame from annotations to visualize our objects.
-*   You can find the code in data/eda.ipynb
-*   I did it on local machine and upload it to data/
 
 
 ```python
@@ -108,18 +107,10 @@ sns.histplot(data=df, x='height', bins=bins)
      
 
 
-They make sense for number plate images
-
-
-
+They make sense for number plate images  
 *   x values are well distributed, which means the cameraman did a good job :D
 *   y values are well distributed as well, but, most of the objects are on top of our images.
 *   both height and width make sense, because our object is licence plate and they all have almost similiar sizes.
-
-
-
-
-
 
 
 ## x vs y | height vs width
@@ -143,11 +134,6 @@ sns.scatterplot(data=df, x='width', y='height', alpha=.4)
 
 
 ![2](https://user-images.githubusercontent.com/17769927/134396293-df5113b7-9237-4dfc-81ac-1a2bf6187826.png)
-
-    
-    
-
-
 
 1.   As mentioned above, there is a lack in our dataset in buttom-half part of xy plane.
 2.   As we can see, the center of our x axis is dense, it's beacuse humans put the object in the center of the camera.
@@ -313,8 +299,6 @@ imShow('./predictions.jpg')
 ```
 
 #### Run on unseen data
-I used the kaggle dataset for this.
-
 
 ```python
 !./darknet detector test ./data/obj.data ./cfg/yolov4-obj.cfg ./backup/yolov4-obj_last.weights ../Cars354.png -thresh 0.3
