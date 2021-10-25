@@ -54,7 +54,7 @@ These files are not in the official repo, but you can find them in my repository
 !python generate_test.py
 ```
 
-## Configs
+## Configurations
 We need to change/create these files (I configured them for our object (which is license plate), and put them in this repository):
 *   data/obj.names
 *   data/obj.data
