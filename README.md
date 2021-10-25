@@ -140,7 +140,7 @@ sns.scatterplot(data=df, x='width', y='height', alpha=.4)
 
 
 
-# Darknet Setup for Google Colab
+# Darknet Configurations
 **This documentation is for Google Colab. If you want to know how to compile darknet on your linux (Ubuntu 20.04) local machine, please read [this documentation](https://github.com/amirafshari/LPD-YOLOv4/blob/master/darknet-linux.md).**
 
 ```python
