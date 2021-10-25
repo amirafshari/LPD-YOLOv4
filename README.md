@@ -1,4 +1,4 @@
-# EDA
+# Exploratory Data Analysis
 How our data looks like?  
 1. Annotations format (YOLO Format): [class, x_center, y_center, obj_width, obj_height]  
 2. Create a DataFrame from annotations to visualize our objects.  
@@ -113,7 +113,7 @@ They make sense for number plate images
 *   both height and width make sense, because our object is licence plate and they all have almost similiar sizes.
 
 
-## x vs y | height vs width
+## X vs Y | Height vs Width
 
 
 ```python
