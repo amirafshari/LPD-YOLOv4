@@ -107,7 +107,6 @@ In case of intruption, we can restart training from our last weight.
 
 #### Setup
 
-
 ```python
 # set custom cfg to test mode 
 %cd cfg
@@ -136,33 +135,28 @@ def imShow(path):
 
 #### Sanity Check on COCO
 
-
 ```python
 !./darknet detector test cfg/coco.data cfg/yolov4.cfg yolov4.weights data/person.jpg
 ```
-
 
 ```python
 imShow('./predictions.jpg')
 ```
 
 #### Run on unseen data
-
 ```python
 !./darknet detector test ./data/obj.data ./cfg/yolov4-obj.cfg ./backup/yolov4-obj_last.weights ../Cars354.png -thresh 0.3
 ```
+![download](https://user-images.githubusercontent.com/17769927/138662797-827178bd-ce03-4896-b093-1705c3ac6d4f.png)
 
 
 ```python
 imShow('./predictions.jpg')
 ```
 ![result-4](https://user-images.githubusercontent.com/17769927/134551901-37ff3f6d-37ae-42dc-96c3-8064786355fe.jpg)
-![result-3](https://user-images.githubusercontent.com/17769927/134552207-dce5e671-d02d-4b6c-b227-e373a51fdca0.jpg)
 
 
 **To process a list of images data/train.txt and save results of detection to result.json file use**
-
-
 
 ```python
 !./darknet detector test data/obj.data cfg/yolov4-obj.cfg backup/yolov4-obj_last.weights -ext_output -dont_show -out result.json < data/test.txt
@@ -173,21 +167,7 @@ imShow('./predictions.jpg')
 mAP-chart (red-line) and Loss-chart (blue-line) will be saved in root directory.  
 mAP will be calculated for each 4 Epochs ~ 240 batches
 
-
 ```python
 !./darknet detector map data/obj.data cfg/yolov4-obj.cfg backup/custom.weights
 ```
-
-*   Precision: 91 %
-*   Average Precision: 89.80 %
-*   Recall: 86 %
-*   F1-score: 88 %
-*   Average IoU: 74.06 %
-*   mAP@0.5: 89.80 %
-*   Confusion Matrix:
-    *   TP = 439
-    *   FP = 45
-    *   FN = 73
-    *   unique_truth_count (TP+FN) = 512
-    *   detections_count = 805
 
